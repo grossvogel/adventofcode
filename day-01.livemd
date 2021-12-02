@@ -1,6 +1,6 @@
-# Advent of Code 2021
+# Day 1 - Sonar Sweep
 
-## Day 1 - Sonar Sweep
+## Puzzle 1
 
 ### Puzzle 1
 
@@ -33,7 +33,7 @@ To do this, count the number of times a depth measurement increases from the pre
 In this example, there are 7 measurements that are larger than the previous measurement.
 
 ```elixir
-raw_input = File.read!("./input-01-01-sonar.txt")
+raw_input = File.read!("./input-01.txt")
 ```
 
 ```elixir
