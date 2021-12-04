@@ -1,0 +1,221 @@
+# Day 4 - Giant Squid
+
+## Puzzle 1
+
+You're already almost 1.5km (almost a mile) below the surface of the ocean, already so deep that you can't see any sunlight. What you can see, however, is a giant squid that has attached itself to the outside of your submarine.
+
+Maybe it wants to play bingo?
+
+Bingo is played on a set of boards each consisting of a 5x5 grid of numbers. Numbers are chosen at random, and the chosen number is marked on all boards on which it appears. (Numbers may not appear on all boards.) If all numbers in any row or any column of a board are marked, that board wins. (Diagonals don't count.)
+
+The submarine has a bingo subsystem to help passengers (currently, you and the giant squid) pass the time. It automatically generates a random order in which to draw numbers and a random set of boards (your puzzle input). For example:
+
+```
+7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1
+
+22 13 17 11  0
+ 8  2 23  4 24
+21  9 14 16  7
+ 6 10  3 18  5
+ 1 12 20 15 19
+
+ 3 15  0  2 22
+ 9 18 13 17  5
+19  8  7 25 23
+20 11 10 24  4
+14 21 16 12  6
+
+14 21 17 24  4
+10 16 15  9 19
+18  8 23 26 20
+22 11 13  6  5
+ 2  0 12  3  7
+```
+
+After the first five numbers are drawn (7, 4, 9, 5, and 11), there are no winners, but the boards are marked as follows (shown here adjacent to each other to save space):
+
+```
+22 13 17 11  0         3 15  0  2 22        14 21 17 24  4
+ 8  2 23  4 24         9 18 13 17  5        10 16 15  9 19
+21  9 14 16  7        19  8  7 25 23        18  8 23 26 20
+ 6 10  3 18  5        20 11 10 24  4        22 11 13  6  5
+ 1 12 20 15 19        14 21 16 12  6         2  0 12  3  7
+```
+
+After the next six numbers are drawn (17, 23, 2, 0, 14, and 21), there are still no winners:
+
+```
+22 13 17 11  0         3 15  0  2 22        14 21 17 24  4
+ 8  2 23  4 24         9 18 13 17  5        10 16 15  9 19
+21  9 14 16  7        19  8  7 25 23        18  8 23 26 20
+ 6 10  3 18  5        20 11 10 24  4        22 11 13  6  5
+ 1 12 20 15 19        14 21 16 12  6         2  0 12  3  7
+```
+
+Finally, 24 is drawn:
+
+```
+22 13 17 11  0         3 15  0  2 22        14 21 17 24  4
+ 8  2 23  4 24         9 18 13 17  5        10 16 15  9 19
+21  9 14 16  7        19  8  7 25 23        18  8 23 26 20
+ 6 10  3 18  5        20 11 10 24  4        22 11 13  6  5
+ 1 12 20 15 19        14 21 16 12  6         2  0 12  3  7
+```
+
+At this point, the third board wins because it has at least one complete row or column of marked numbers (in this case, the entire top row is marked: 14 21 17 24 4).
+
+The score of the winning board can now be calculated. Start by finding the sum of all unmarked numbers on that board; in this case, the sum is 188. Then, multiply that sum by the number that was just called when the board won, 24, to get the final score, 188 * 24 = 4512.
+
+To guarantee victory against the giant squid, figure out which board will win first. What will your final score be if you choose that board?
+
+```elixir
+input = File.read!("./input-04.txt")
+
+sample = """
+7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1
+
+22 13 17 11  0
+ 8  2 23  4 24
+21  9 14 16  7
+ 6 10  3 18  5
+ 1 12 20 15 19
+
+ 3 15  0  2 22
+ 9 18 13 17  5
+19  8  7 25 23
+20 11 10 24  4
+14 21 16 12  6
+
+14 21 17 24  4
+10 16 15  9 19
+18  8 23 26 20
+22 11 13  6  5
+ 2  0 12  3  7
+"""
+```
+
+```elixir
+defmodule Bingo do
+  defstruct cards: [], numbers: [], winners: []
+
+  def load(input) do
+    [numbers_raw | cards_raw] = String.split(input, "\n\n", trim: true)
+    numbers = numbers_raw |> String.split(",", trim: true) |> Enum.map(&String.to_integer/1)
+    cards = Enum.map(cards_raw, &BingoCard.load/1)
+    %__MODULE__{numbers: numbers, cards: cards}
+  end
+
+  def play(%__MODULE__{numbers: []}), do: "Oops, ran out of numbers and nobody won"
+
+  def play(%__MODULE__{numbers: [number | next_numbers], cards: cards, winners: winners}) do
+    next_cards = Enum.map(cards, fn card -> BingoCard.mark(card, number) end)
+
+    new_winners =
+      next_cards
+      |> Enum.with_index()
+      |> Enum.filter(fn {_card, index} -> !already_won?(winners, index) end)
+      |> Enum.filter(fn {card, _index} -> BingoCard.winner?(card) end)
+      |> Enum.map(fn {card, index} -> {index, card, number} end)
+
+    next_winners = winners ++ new_winners
+    next_round = %__MODULE__{numbers: next_numbers, cards: next_cards, winners: next_winners}
+
+    if Enum.count(next_winners) == Enum.count(next_cards) do
+      display_winners(next_round)
+    else
+      play(next_round)
+    end
+  end
+
+  def already_won?(winners, card_index) do
+    Enum.any?(winners, fn {index, _, _} -> index == card_index end)
+  end
+
+  def display_winners(%__MODULE__{winners: winners}) do
+    [{_, first_card, first_number} | _] = winners
+    [{_, last_card, last_number} | _] = Enum.reverse(winners)
+
+    IO.puts("FIRST WINNER")
+    winning_info(first_card, first_number)
+
+    IO.puts("LAST WINNER")
+    winning_info(last_card, last_number)
+  end
+
+  def winning_info(card, number) do
+    card_sum = BingoCard.unmarked_sum(card)
+    IO.puts("Card is #{inspect(card.rows)}")
+    IO.puts("Unmarked sum is #{card_sum}")
+    IO.puts("Winning number is #{number}")
+    IO.puts("Score is #{card_sum * number}")
+  end
+end
+
+defmodule BingoCard do
+  defstruct rows: [], number_positions: %{}, marked_positions: []
+
+  def load(input) do
+    rows =
+      input
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn line ->
+        line |> String.split(" ", trim: true) |> Enum.map(&String.to_integer/1)
+      end)
+
+    number_positions =
+      rows
+      |> Enum.with_index()
+      |> Enum.reduce(%{}, fn {row, row_num}, row_positions ->
+        row
+        |> Enum.with_index()
+        |> Enum.reduce(row_positions, fn {number, col_num}, col_positions ->
+          existing = Map.get(col_positions, number, [])
+          Map.put(col_positions, number, [{row_num, col_num} | existing])
+        end)
+      end)
+
+    %__MODULE__{rows: rows, number_positions: number_positions}
+  end
+
+  def mark(card, number) do
+    case Map.get(card.number_positions, number) do
+      nil ->
+        card
+
+      positions ->
+        %{card | marked_positions: positions ++ card.marked_positions}
+    end
+  end
+
+  def unmarked_sum(card) do
+    Enum.reduce(card.number_positions, 0, fn {number, positions}, row_sum ->
+      occurrences = Enum.count(positions, fn pos -> !Enum.member?(card.marked_positions, pos) end)
+      row_sum + occurrences * number
+    end)
+  end
+
+  def winner?(card) do
+    card_size = Enum.count(card.rows)
+
+    winning_rows =
+      card.marked_positions
+      |> Enum.group_by(fn {row, _col} -> row end)
+      |> Enum.filter(fn {_row, row_marks} -> Enum.count(row_marks) == card_size end)
+
+    winning_cols =
+      card.marked_positions
+      |> Enum.group_by(fn {_row, col} -> col end)
+      |> Enum.filter(fn {_col, row_marks} -> Enum.count(row_marks) == card_size end)
+
+    winning_rows != [] || winning_cols != []
+  end
+end
+```
+
+```elixir
+sample |> Bingo.load() |> Bingo.play()
+```
+
+```elixir
+input |> Bingo.load() |> Bingo.play()
+```
