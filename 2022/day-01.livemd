@@ -1,0 +1,48 @@
+# Day 1: Calorie Counting
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 1
+
+* Problem: https://adventofcode.com/2022/day/1
+* Input: https://adventofcode.com/2022/day/1/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Raw Input")
+```
+
+```elixir
+sum_most_calories = fn input, count ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n\n")
+  |> Enum.map(fn list ->
+    list |> String.split() |> Enum.map(&String.to_integer/1) |> Enum.sum()
+  end)
+  |> Enum.sort()
+  |> Enum.reverse()
+  |> Enum.take(count)
+  |> Enum.sum()
+  |> dbg()
+end
+
+sum_most_calories.(sample_input, 1)
+```
+
+```elixir
+sum_most_calories.(real_input, 1)
+```
+
+```elixir
+sum_most_calories.(sample_input, 3)
+```
+
+```elixir
+sum_most_calories.(real_input, 3)
+```
