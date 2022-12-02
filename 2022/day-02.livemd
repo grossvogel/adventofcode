@@ -1,0 +1,109 @@
+# Day 2: Rock Paper Scissors
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 2
+
+* Puzzle: https://adventofcode.com/2022/day/2
+* Input: https://adventofcode.com/2022/day/2/input
+
+I really should have put together some mathematical equivalences instead of translating manually between strings and atoms everywhere and using matching for the logic... :|
+
+Maybe I'll revisit or just do better next time.
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+normalize = fn
+  "A" -> :rock
+  "B" -> :paper
+  "C" -> :scissors
+  "X" -> :rock
+  "Y" -> :paper
+  "Z" -> :scissors
+end
+
+outcome_score = fn
+  {same, same} -> 3
+  {:rock, :paper} -> 6
+  {:paper, :scissors} -> 6
+  {:scissors, :rock} -> 6
+  _ -> 0
+end
+
+choice_score = fn
+  {_, :rock} -> 1
+  {_, :paper} -> 2
+  _ -> 3
+end
+
+round_score = fn raw_round ->
+  [opponent, me] = String.split(raw_round)
+  round = {normalize.(opponent), normalize.(me)}
+  outcome_score.(round) + choice_score.(round)
+end
+
+total_score = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.map(round_score)
+  |> Enum.sum()
+end
+```
+
+```elixir
+total_score.(sample_input)
+```
+
+```elixir
+total_score.(real_input)
+```
+
+```elixir
+my_play = fn
+  opponent_play, "Y" -> opponent_play
+  :rock, "Z" -> :paper
+  :rock, "X" -> :scissors
+  :paper, "Z" -> :scissors
+  :paper, "X" -> :rock
+  :scissors, "Z" -> :rock
+  :scissors, "X" -> :paper
+end
+
+parse_round_2 = fn raw_round ->
+  [opponent, instruction] = String.split(raw_round)
+  opponent_play = normalize.(opponent)
+  {opponent_play, my_play.(opponent_play, instruction)}
+end
+
+round_score_2 = fn round ->
+  outcome_score.(round) + choice_score.(round)
+end
+
+total_score_2 = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.map(parse_round_2)
+  |> Enum.map(round_score_2)
+  |> Enum.sum()
+  |> dbg()
+end
+```
+
+```elixir
+total_score_2.(sample_input)
+```
+
+```elixir
+total_score_2.(real_input)
+```
