@@ -1,0 +1,82 @@
+# Day 3: Rucksack Reorganization
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 3
+
+* Puzzle: https://adventofcode.com/2022/day/3
+* Input: https://adventofcode.com/2022/day/3/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+parse_rucksacks = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split()
+  |> Enum.map(&String.to_charlist/1)
+  |> Enum.map(&Enum.chunk_every(&1, div(length(&1), 2)))
+  |> dbg()
+end
+
+char_score = fn
+  char when char <= 90 -> char - ?A + 27
+  char -> char - ?a + 1
+end
+
+rucksack_score = fn [first, second] ->
+  first
+  |> MapSet.new()
+  |> MapSet.intersection(MapSet.new(second))
+  |> MapSet.to_list()
+  |> List.first()
+  |> char_score.()
+end
+```
+
+```elixir
+sample_input |> parse_rucksacks.() |> Enum.map(rucksack_score) |> Enum.sum()
+```
+
+```elixir
+real_input |> parse_rucksacks.() |> Enum.map(rucksack_score) |> Enum.sum()
+```
+
+```elixir
+parse_rucksacks_two = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split()
+  |> Enum.map(fn line -> line |> String.to_charlist() |> MapSet.new() end)
+end
+
+group_total_sum = fn rucksacks ->
+  rucksacks
+  |> Enum.chunk_every(3)
+  |> Enum.map(fn [one, two, three] ->
+    one
+    |> MapSet.intersection(two)
+    |> MapSet.intersection(three)
+    |> Enum.to_list()
+    |> List.first()
+    |> char_score.()
+  end)
+  |> Enum.sum()
+end
+```
+
+```elixir
+sample_input |> parse_rucksacks_two.() |> group_total_sum.()
+```
+
+```elixir
+real_input |> parse_rucksacks_two.() |> group_total_sum.()
+```
