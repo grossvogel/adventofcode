@@ -28,7 +28,7 @@ parse_rucksacks = fn input ->
 end
 
 char_score = fn
-  char when char <= 90 -> char - ?A + 27
+  char when char < ?a -> char - ?A + 27
   char -> char - ?a + 1
 end
 
