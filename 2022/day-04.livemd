@@ -1,0 +1,71 @@
+# Day 4: Camp Cleanup
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 4
+
+* Puzzle: https://adventofcode.com/2022/day/4
+* Input: https://adventofcode.com/2022/day/4/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+parse_single_assignment = fn spec ->
+  spec
+  |> String.split("-")
+  |> Enum.map(&String.to_integer/1)
+  |> List.to_tuple()
+end
+
+parse_assignments = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split()
+  |> Enum.map(fn line ->
+    line
+    |> String.split(",")
+    |> Enum.map(parse_single_assignment)
+    |> List.to_tuple()
+  end)
+end
+
+contains? = fn {start_one, end_one}, {start_two, end_two} ->
+  start_one <= start_two and end_one >= end_two
+end
+
+subset? = fn
+  {one, two} -> contains?.(one, two) or contains?.(two, one)
+end
+
+overlap? = fn {{start_one, end_one}, {start_two, end_two}} ->
+  !(end_one < start_two or start_one > end_two)
+end
+
+count_subsets = &Enum.count(&1, subset?)
+
+count_overlap = &Enum.count(&1, overlap?)
+```
+
+```elixir
+sample_input |> parse_assignments.() |> count_subsets.()
+```
+
+```elixir
+real_input |> parse_assignments.() |> count_subsets.()
+```
+
+```elixir
+sample_input |> parse_assignments.() |> count_overlap.()
+```
+
+```elixir
+real_input |> parse_assignments.() |> count_overlap.()
+```
