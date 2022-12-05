@@ -1,0 +1,108 @@
+# Day 5: Supply Stacks
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 5
+
+* Puzzle: https://adventofcode.com/2022/day/5
+* Input: https://adventofcode.com/2022/day/5/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+sample_stacks = %{
+  1 => ["N", "Z"],
+  2 => ["D", "C", "M"],
+  3 => ["P"]
+}
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+real_stacks = %{
+  1 => ["D", "T", "W", "N", "L"],
+  2 => ["H", "P", "C"],
+  3 => ["J", "M", "G", "D", "N", "H", "P", "W"],
+  4 => ["L", "Q", "T", "N", "S", "W", "C"],
+  5 => ["N", "C", "H", "P"],
+  6 => ["B", "Q", "W", "M", "D", "N", "H", "T"],
+  7 => ["L", "S", "G", "J", "R", "B", "M"],
+  8 => ["T", "R", "B", "V", "G", "W", "N", "Z"],
+  9 => ["L", "P", "N", "D", "G", "W"]
+}
+```
+
+```elixir
+parse_moves = fn line ->
+  [_all, count, from, to] = Regex.run(~r/move (\d+) from (\d+) to (\d+)/, line)
+
+  %{
+    count: String.to_integer(count),
+    from: String.to_integer(from),
+    to: String.to_integer(to)
+  }
+end
+
+apply_move = fn stacks, from, to ->
+  [to_move | new_from] = stacks[from]
+  new_to = [to_move | stacks[to]]
+
+  stacks
+  |> Map.put(from, new_from)
+  |> Map.put(to, new_to)
+end
+
+apply_moves = fn stacks, %{count: count, from: from, to: to} ->
+  Enum.reduce(1..count, stacks, fn _index, stacks -> apply_move.(stacks, from, to) end)
+end
+
+apply_all = fn stacks, input ->
+  moves = input |> Kino.Input.read() |> String.split("\n") |> Enum.map(parse_moves)
+
+  Enum.reduce(moves, stacks, fn move, stacks -> apply_moves.(stacks, move) end)
+end
+
+apply_moves_multi = fn stacks, %{count: count, from: from, to: to} ->
+  {to_move, new_from} = Enum.split(stacks[from], count)
+  new_to = to_move ++ stacks[to]
+
+  stacks
+  |> Map.put(from, new_from)
+  |> Map.put(to, new_to)
+end
+
+apply_all_multi = fn stacks, input ->
+  moves = input |> Kino.Input.read() |> String.split("\n") |> Enum.map(parse_moves)
+  Enum.reduce(moves, stacks, fn move, stacks -> apply_moves_multi.(stacks, move) end)
+end
+
+top_crates = fn stacks ->
+  1..Enum.count(stacks)
+  |> Enum.map(&Map.get(stacks, &1))
+  |> Enum.map(&List.first/1)
+  |> Enum.join()
+end
+```
+
+```elixir
+sample_stacks |> apply_all.(sample_input) |> top_crates.()
+```
+
+```elixir
+real_stacks |> apply_all.(real_input) |> top_crates.()
+```
+
+```elixir
+sample_stacks |> apply_all_multi.(sample_input) |> top_crates.()
+```
+
+```elixir
+real_stacks |> apply_all_multi.(real_input) |> top_crates.()
+```
