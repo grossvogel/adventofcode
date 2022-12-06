@@ -1,0 +1,96 @@
+# Day 6: Tuning Trouble
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 6
+
+* Puzzle: https://adventofcode.com/2022/day/6
+* Input: https://adventofcode.com/2022/day/6/input
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+samples = [
+  "mjqjpqmgbljsphdztnvjfqwrcgsmlb",
+  "bvwbjplbgvbhsrlpgdmjqwftvncz",
+  "nppdvjthqldpwncqszvftbrmjlhg",
+  "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg",
+  "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw"
+]
+```
+
+```elixir
+signal = Kino.Input.read(real_input)
+```
+
+```elixir
+defmodule ParserState do
+  defstruct count: 0, buffer: "", size: 4, status: :processing
+
+  def update_buffer(
+        %__MODULE__{
+          size: size,
+          buffer: buffer
+        } = state,
+        char
+      ) do
+    if String.length(buffer) === size do
+      <<_first::binary-size(1)>> <> rest = buffer
+      %{state | buffer: rest <> char}
+    else
+      %{state | buffer: buffer <> char}
+    end
+  end
+
+  def advance_count(%__MODULE__{count: count} = state), do: %{state | count: count + 1}
+
+  def update_status(%__MODULE__{buffer: buffer, size: size} = state) do
+    distinct_count = buffer |> String.codepoints() |> MapSet.new() |> MapSet.size()
+
+    if distinct_count == size do
+      %{state | status: :done}
+    else
+      state
+    end
+  end
+
+  def process_char(%__MODULE__{} = state, char) do
+    state
+    |> update_buffer(char)
+    |> advance_count()
+    |> update_status()
+  end
+end
+
+parse_input = fn input, size ->
+  input
+  |> String.codepoints()
+  |> Enum.reduce_while(%ParserState{size: size}, fn char, prev_state ->
+    case ParserState.process_char(prev_state, char) do
+      %{status: :done} = state -> {:halt, state}
+      state -> {:cont, state}
+    end
+  end)
+  |> Map.get(:count)
+end
+```
+
+```elixir
+samples |> Enum.map(fn sample -> parse_input.(sample, 4) end)
+```
+
+```elixir
+parse_input.(signal, 4)
+```
+
+```elixir
+samples |> Enum.map(fn sample -> parse_input.(sample, 14) end)
+```
+
+```elixir
+parse_input.(signal, 14)
+```
