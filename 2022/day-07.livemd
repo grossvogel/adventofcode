@@ -1,0 +1,189 @@
+# Day 7: No Space Left On Device
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 7
+
+* Puzzle: https://adventofcode.com/2022/day/7
+* Input: https://adventofcode.com/2022/day/7/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule FSNode do
+  @behaviour Access
+  defstruct name: "/", type: :dir, size: nil, children: %{}
+
+  def new_file(name, size) when is_integer(size) do
+    %__MODULE__{name: name, type: :file, size: size}
+  end
+
+  def new_dir(name) do
+    %__MODULE__{name: name, type: :dir}
+  end
+
+  def get_node(%__MODULE__{} = root, []), do: root
+
+  def get_node(%__MODULE__{} = root, path) do
+    get_in(root, path)
+  end
+
+  def add_child(%__MODULE__{} = root, parent_path, %__MODULE__{} = child) do
+    put_node(root, parent_path ++ [child.name], child)
+  end
+
+  def put_node(%__MODULE__{}, [], node), do: node
+
+  def put_node(%__MODULE__{} = root, path, node) do
+    put_in(root, path, node)
+  end
+
+  def size(%__MODULE__{size: size}) when not is_nil(size), do: size
+
+  def size(%__MODULE__{children: children}) do
+    Enum.reduce(children, 0, fn {_key, node}, total -> total + size(node) end)
+  end
+
+  def populate_dir_sizes(%__MODULE__{} = root, path \\ []) do
+    case get_node(root, path) do
+      %{type: :dir} = %{children: children} ->
+        new_root =
+          Enum.reduce(children, root, fn {name, _child}, root ->
+            populate_dir_sizes(root, path ++ [name])
+          end)
+
+        new_node = get_node(new_root, path)
+        put_node(new_root, path, %{new_node | size: size(new_node)})
+
+      _ ->
+        root
+    end
+  end
+
+  def all_nodes_of_type(node, type) do
+    base = if node.type == type, do: [node], else: []
+
+    base ++
+      Enum.flat_map(node.children, fn {_name, child} ->
+        all_nodes_of_type(child, type)
+      end)
+  end
+
+  @impl Access
+  def fetch(node, key), do: Map.fetch(node.children, key)
+
+  @impl Access
+  def get_and_update(node, key, updater) do
+    {_existing, new} = Map.get_and_update(node.children, key, updater)
+    {node, %{node | children: new}}
+  end
+
+  @impl Access
+  def pop(node, key), do: Map.pop(node.children, key)
+end
+
+defmodule State do
+  defstruct root_node: nil, current_path: []
+
+  def new do
+    %__MODULE__{root_node: %FSNode{}, current_path: []}
+  end
+
+  def process_line(state, "$ cd /"), do: %{state | current_path: []}
+
+  def process_line(state, "$ ls"), do: state
+
+  def process_line(state, "$ cd ..") do
+    new_path = state.current_path |> Enum.reverse() |> tl() |> Enum.reverse()
+    %{state | current_path: new_path}
+  end
+
+  def process_line(state, "$ cd " <> child) do
+    %{state | current_path: state.current_path ++ [child]}
+  end
+
+  def process_line(state, "dir " <> dir_name) do
+    dir = FSNode.new_dir(dir_name)
+    %{state | root_node: FSNode.add_child(state.root_node, state.current_path, dir)}
+  end
+
+  def process_line(state, file_with_size) do
+    {size, " " <> filename} = Integer.parse(file_with_size)
+    file = FSNode.new_file(filename, size)
+    %{state | root_node: FSNode.add_child(state.root_node, state.current_path, file)}
+  end
+end
+```
+
+```elixir
+parse_fs = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.reduce(State.new(), &State.process_line(&2, &1))
+end
+```
+
+```elixir
+sample_input
+|> parse_fs.()
+|> Map.get(:root_node)
+|> FSNode.populate_dir_sizes()
+|> FSNode.all_nodes_of_type(:dir)
+|> Enum.map(& &1.size)
+|> Enum.filter(&(&1 <= 100_000))
+|> Enum.sum()
+```
+
+```elixir
+real_input
+|> parse_fs.()
+|> Map.get(:root_node)
+|> FSNode.populate_dir_sizes()
+|> FSNode.all_nodes_of_type(:dir)
+|> Enum.map(& &1.size)
+|> Enum.filter(&(&1 <= 100_000))
+|> Enum.sum()
+```
+
+```elixir
+sample_fs =
+  sample_input
+  |> parse_fs.()
+  |> Map.get(:root_node)
+  |> FSNode.populate_dir_sizes()
+
+needed = 30_000_000 - (70_000_000 - sample_fs.size)
+
+sample_fs
+|> FSNode.all_nodes_of_type(:dir)
+|> Enum.map(& &1.size)
+|> Enum.filter(&(&1 >= needed))
+|> Enum.sort()
+|> List.first()
+```
+
+```elixir
+real_fs =
+  real_input
+  |> parse_fs.()
+  |> Map.get(:root_node)
+  |> FSNode.populate_dir_sizes()
+
+needed = 30_000_000 - (70_000_000 - real_fs.size)
+
+real_fs
+|> FSNode.all_nodes_of_type(:dir)
+|> Enum.map(& &1.size)
+|> Enum.filter(&(&1 >= needed))
+|> Enum.sort()
+|> List.first()
+```
