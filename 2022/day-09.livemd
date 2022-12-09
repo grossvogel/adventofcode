@@ -1,0 +1,164 @@
+# Day 9: Rope Bridge
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 9
+
+* Puzzle: https://adventofcode.com/2022/day/9
+* Input: https://adventofcode.com/2022/day/9/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule SimpleRope do
+  defstruct head: {0, 0}, tail: {0, 0}, tail_log: MapSet.new([{0, 0}])
+
+  def move(%{head: {x, y}} = rope, "U"), do: move_tail(%{rope | head: {x, y + 1}})
+  def move(%{head: {x, y}} = rope, "D"), do: move_tail(%{rope | head: {x, y - 1}})
+  def move(%{head: {x, y}} = rope, "L"), do: move_tail(%{rope | head: {x - 1, y}})
+  def move(%{head: {x, y}} = rope, "R"), do: move_tail(%{rope | head: {x + 1, y}})
+
+  defp move_tail(%{tail: {x, y}} = rope) do
+    new_tail =
+      case differential(rope) do
+        {2, 0} -> {x + 1, y}
+        {-2, 0} -> {x - 1, y}
+        {0, 2} -> {x, y + 1}
+        {0, -2} -> {x, y - 1}
+        {2, 1} -> {x + 1, y + 1}
+        {-2, 1} -> {x - 1, y + 1}
+        {1, 2} -> {x + 1, y + 1}
+        {1, -2} -> {x + 1, y - 1}
+        {2, -1} -> {x + 1, y - 1}
+        {-2, -1} -> {x - 1, y - 1}
+        {-1, 2} -> {x - 1, y + 1}
+        {-1, -2} -> {x - 1, y - 1}
+        _ -> {x, y}
+      end
+
+    %{rope | tail: new_tail, tail_log: MapSet.put(rope.tail_log, new_tail)}
+  end
+
+  defp differential(%{head: {hx, hy}, tail: {tx, ty}}), do: {hx - tx, hy - ty}
+end
+```
+
+```elixir
+parse_input = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.map(fn <<direction::binary-size(1)>> <> " " <> distance ->
+    1..String.to_integer(distance) |> Enum.map(fn _ -> direction end)
+  end)
+  |> List.flatten()
+end
+
+apply_simple = fn input ->
+  input
+  |> parse_input.()
+  |> Enum.reduce(%SimpleRope{}, fn move, rope -> SimpleRope.move(rope, move) end)
+end
+```
+
+```elixir
+apply_simple.(sample_input) |> then(fn rope -> MapSet.size(rope.tail_log) end)
+```
+
+```elixir
+apply_simple.(real_input) |> then(fn rope -> MapSet.size(rope.tail_log) end)
+```
+
+```elixir
+defmodule Rope do
+  defstruct knots: %{}, size: 0, tail_log: MapSet.new([{0, 0}])
+
+  def new(size) do
+    knots = Enum.into(0..(size - 1), %{}, fn index -> {index, {0, 0}} end)
+    %__MODULE__{knots: knots, size: size}
+  end
+
+  def move(%{knots: %{0 => {x, y}}} = rope, "U"),
+    do: propagate_moves(%{rope | knots: Map.put(rope.knots, 0, {x, y + 1})})
+
+  def move(%{knots: %{0 => {x, y}}} = rope, "D"),
+    do: propagate_moves(%{rope | knots: Map.put(rope.knots, 0, {x, y - 1})})
+
+  def move(%{knots: %{0 => {x, y}}} = rope, "L"),
+    do: propagate_moves(%{rope | knots: Map.put(rope.knots, 0, {x - 1, y})})
+
+  def move(%{knots: %{0 => {x, y}}} = rope, "R"),
+    do: propagate_moves(%{rope | knots: Map.put(rope.knots, 0, {x + 1, y})})
+
+  defp propagate_moves(rope, prev_index \\ 0)
+
+  defp propagate_moves(%{size: size} = rope, prev_index) when prev_index >= size - 1,
+    do: %{rope | tail_log: MapSet.put(rope.tail_log, rope.knots[prev_index])}
+
+  defp propagate_moves(rope, prev_index) do
+    next_index = prev_index + 1
+    {x, y} = rope.knots[next_index]
+
+    next_knot =
+      case differential(rope, prev_index) do
+        {2, 0} -> {x + 1, y}
+        {-2, 0} -> {x - 1, y}
+        {0, 2} -> {x, y + 1}
+        {0, -2} -> {x, y - 1}
+        {2, diff_y} when diff_y > 0 -> {x + 1, y + 1}
+        {-2, diff_y} when diff_y > 0 -> {x - 1, y + 1}
+        {diff_x, 2} when diff_x > 0 -> {x + 1, y + 1}
+        {diff_x, -2} when diff_x > 0 -> {x + 1, y - 1}
+        {2, diff_y} when diff_y < 0 -> {x + 1, y - 1}
+        {-2, diff_y} when diff_y < 0 -> {x - 1, y - 1}
+        {diff_x, 2} when diff_x < 0 -> {x - 1, y + 1}
+        {diff_x, -2} when diff_x < 0 -> {x - 1, y - 1}
+        _ -> {x, y}
+      end
+
+    propagate_moves(%{rope | knots: Map.put(rope.knots, next_index, next_knot)}, next_index)
+  end
+
+  defp differential(%{knots: knots}, prev_index) do
+    {hx, hy} = knots[prev_index]
+    {tx, ty} = knots[prev_index + 1]
+    {hx - tx, hy - ty}
+  end
+end
+```
+
+```elixir
+apply_input = fn input, rope_length ->
+  input
+  |> parse_input.()
+  |> Enum.reduce(Rope.new(rope_length), fn move, rope -> Rope.move(rope, move) end)
+end
+```
+
+```elixir
+apply_input.(sample_input, 2) |> then(fn rope -> MapSet.size(rope.tail_log) end)
+```
+
+```elixir
+apply_input.(real_input, 2) |> then(fn rope -> MapSet.size(rope.tail_log) end)
+```
+
+```elixir
+larger_sample_input = Kino.Input.textarea("Paste Larger Sample")
+```
+
+```elixir
+apply_input.(larger_sample_input, 10) |> then(fn rope -> MapSet.size(rope.tail_log) end)
+```
+
+```elixir
+apply_input.(real_input, 10) |> then(fn rope -> MapSet.size(rope.tail_log) end)
+```
