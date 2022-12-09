@@ -1,0 +1,217 @@
+# Day 8: Treetop Treehouse
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 8
+
+* Puzzle: https://adventofcode.com/2022/day/8
+* Input: https://adventofcode.com/2022/day/8/input
+
+Sample Input
+
+```
+30373
+25512
+65332
+33549
+35390
+```
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Grid do
+  defstruct rows: %{}
+
+  def from_string(raw_input) do
+    rows =
+      raw_input
+      |> String.split("\n")
+      |> Enum.with_index()
+      |> Enum.into(%{}, fn {value, index} -> {index, value} end)
+
+    %__MODULE__{rows: rows}
+  end
+
+  def read(%__MODULE__{} = grid, {row, col}) do
+    read(grid, row, col)
+  end
+
+  def read(%__MODULE__{rows: rows}, row, col) when is_integer(row) and is_integer(col) do
+    rows
+    |> Map.get(row)
+    |> read(col)
+  end
+
+  def read(row_chars, col) when is_binary(row_chars) and is_integer(col) do
+    <<_pre::binary-size(col), value::binary-size(1), _rest::binary>> = row_chars
+    value
+  end
+
+  def row_count(%__MODULE__{rows: rows}), do: Enum.count(rows)
+
+  def col_count(%__MODULE__{rows: %{0 => row}}), do: String.length(row)
+
+  def to_string(%__MODULE__{} = grid) do
+    to_string(grid, fn val, _row, _col -> val end)
+  end
+
+  def to_string(%__MODULE__{rows: rows} = grid, transform) do
+    count = row_count(grid)
+
+    0..(count - 1)
+    |> Enum.map(fn row_num -> {row_num, Map.get(rows, row_num)} end)
+    |> Enum.map(fn {row_num, row} ->
+      row
+      |> String.codepoints()
+      |> Enum.with_index()
+      |> Enum.map(fn {value, col_num} -> transform.(value, row_num, col_num) end)
+      |> Enum.join()
+    end)
+    |> Enum.join("\n")
+  end
+end
+```
+
+```elixir
+lines_of_sight = fn grid ->
+  row_size = Grid.row_count(grid)
+  col_size = Grid.col_count(grid)
+
+  for row <- 0..(row_size - 1) do
+    for col <- 0..(col_size - 1), do: {row, col}
+  end ++
+    for row <- (row_size - 1)..0 do
+      for col <- (col_size - 1)..0, do: {row, col}
+    end ++
+    for col <- 0..(col_size - 1) do
+      for row <- 0..(row_size - 1), do: {row, col}
+    end ++
+    for col <- (col_size - 1)..0 do
+      for row <- (row_size - 1)..0, do: {row, col}
+    end
+end
+
+visible_trees_in_line = fn line, grid ->
+  {visible, _max} =
+    Enum.reduce(line, {MapSet.new(), -1}, fn {row, col}, {visible, max} ->
+      value = Grid.read(grid, row, col)
+
+      if value > max do
+        {MapSet.put(visible, {row, col}), value}
+      else
+        {visible, max}
+      end
+    end)
+
+  visible
+end
+
+visible_trees = fn input ->
+  grid =
+    input
+    |> Kino.Input.read()
+    |> Grid.from_string()
+
+  grid
+  |> lines_of_sight.()
+  |> Enum.reduce(MapSet.new(), fn line, visible ->
+    MapSet.union(visible, visible_trees_in_line.(line, grid))
+  end)
+end
+
+show_visible_trees = fn input ->
+  visible = visible_trees.(input)
+
+  input
+  |> Kino.Input.read()
+  |> Grid.from_string()
+  |> Grid.to_string(fn _val, row, col ->
+    if MapSet.member?(visible, {row, col}), do: "*", else: " "
+  end)
+  |> IO.puts()
+end
+
+sample_input |> visible_trees.() |> Enum.count()
+```
+
+```elixir
+real_input |> visible_trees.() |> Enum.count()
+```
+
+```elixir
+show_visible_trees.(real_input)
+```
+
+```elixir
+defmodule ScenicScores do
+  def max_scenic_score(grid) do
+    row_count = Grid.row_count(grid)
+    col_count = Grid.col_count(grid)
+
+    for row <- 0..(row_count - 1), col <- 0..(col_count - 1), reduce: 0 do
+      acc ->
+        score = scenic_score(grid, {row, col})
+        max(score, acc)
+    end
+  end
+
+  def scenic_score(grid, vantage) do
+    [:north, :south, :east, :west]
+    |> Enum.map(fn direction -> trees_in_view(grid, vantage, direction) end)
+    |> Enum.reduce(1, &(&1 * &2))
+  end
+
+  def trees_in_view(grid, {row, col}, direction) do
+    vantage_height = Grid.read(grid, {row, col})
+    size = {Grid.row_count(grid), Grid.col_count(grid)}
+
+    Enum.reduce_while(0..100, {{row, col}, 0}, fn _, {cursor, count} ->
+      case next(cursor, size, direction) do
+        nil ->
+          {:halt, count}
+
+        neighbor ->
+          height = Grid.read(grid, neighbor)
+
+          cond do
+            height >= vantage_height -> {:halt, count + 1}
+            height < vantage_height -> {:cont, {neighbor, count + 1}}
+          end
+      end
+    end)
+  end
+
+  def next({0, _col}, _, :north), do: nil
+  def next({row, _col}, {row_count, _}, :south) when row_count <= row + 1, do: nil
+  def next({_row, col}, {_, col_count}, :east) when col_count <= col + 1, do: nil
+  def next({_row, 0}, _, :west), do: nil
+  def next({row, col}, _, :north), do: {row - 1, col}
+  def next({row, col}, _, :south), do: {row + 1, col}
+  def next({row, col}, _, :east), do: {row, col + 1}
+  def next({row, col}, _, :west), do: {row, col - 1}
+end
+```
+
+```elixir
+max_score = fn input ->
+  input
+  |> Kino.Input.read()
+  |> Grid.from_string()
+  |> ScenicScores.max_scenic_score()
+end
+
+max_score.(sample_input)
+```
+
+```elixir
+max_score.(real_input)
+```
