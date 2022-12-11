@@ -1,0 +1,147 @@
+# Day 10: Cathode-ray Tube
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 10
+
+* Puzzle: https://adventofcode.com/2022/day/10
+* Input: https://adventofcode.com/2022/day/10/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule State do
+  defstruct cycle: 0, registers: %{"x" => 1}, signals: %{}
+
+  def process(state, "noop") do
+    state
+    |> increment_cycle()
+    |> check_signal()
+  end
+
+  def process(state, instruction) do
+    state
+    |> increment_cycle()
+    |> check_signal()
+    |> increment_cycle()
+    |> check_signal()
+    |> apply_instruction(instruction)
+  end
+
+  def increment_cycle(state), do: %{state | cycle: state.cycle + 1}
+
+  def apply_instruction(state, "add" <> <<register::binary-size(1)>> <> " " <> raw_amount) do
+    amount = String.to_integer(raw_amount)
+
+    %{
+      state
+      | registers: Map.put(state.registers, register, state.registers[register] + amount)
+    }
+  end
+
+  def check_signal(state) do
+    if state.cycle == 20 || rem(state.cycle - 20, 40) == 0 do
+      %{state | signals: Map.put(state.signals, state.cycle, state.registers)}
+    else
+      state
+    end
+  end
+end
+
+process_instructions = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.reduce(%State{}, fn instruction, state -> State.process(state, instruction) end)
+end
+
+calculate_signal = fn state ->
+  state.signals
+  |> Enum.into([], fn {cycle, %{"x" => value}} -> cycle * value end)
+  |> Enum.sum()
+end
+```
+
+```elixir
+sample_input |> process_instructions.() |> calculate_signal.()
+```
+
+```elixir
+real_input |> process_instructions.() |> calculate_signal.()
+```
+
+```elixir
+defmodule CRT do
+  defstruct cycle: 0, x: 1, pixels: []
+
+  def process(state, "noop") do
+    state
+    |> increment_cycle()
+    |> draw_pixel()
+  end
+
+  def process(state, instruction) do
+    state
+    |> increment_cycle()
+    |> draw_pixel()
+    |> increment_cycle()
+    |> draw_pixel()
+    |> apply_instruction(instruction)
+  end
+
+  def increment_cycle(state), do: %{state | cycle: state.cycle + 1}
+
+  def apply_instruction(state, "addx" <> " " <> raw_amount) do
+    amount = String.to_integer(raw_amount)
+    %{state | x: state.x + amount}
+  end
+
+  def draw_pixel(state) do
+    cursor_x = rem(state.cycle - 1, 40)
+
+    pixel =
+      if state.x - 1 <= cursor_x and cursor_x <= state.x + 1 do
+        "#"
+      else
+        "."
+      end
+
+    %{state | pixels: [pixel | state.pixels]}
+  end
+
+  def print(state) do
+    state.pixels
+    |> Enum.reverse()
+    |> Enum.chunk_every(40)
+    |> Enum.map(&Enum.join/1)
+    |> Enum.join("\n")
+    |> IO.puts()
+  end
+end
+```
+
+```elixir
+print_screen = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.reduce(%CRT{}, fn instruction, state -> CRT.process(state, instruction) end)
+  |> CRT.print()
+end
+
+print_screen.(sample_input)
+```
+
+```elixir
+print_screen.(real_input)
+```
+
+PAPJCBHP
