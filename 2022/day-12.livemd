@@ -1,0 +1,163 @@
+# Day 12: Hill Climbing
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 12
+
+* Puzzle: https://adventofcode.com/2022/day/12
+* Input: https://adventofcode.com/2022/day/12/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule ElevationMap do
+  defstruct rows: %{},
+            distances: %{},
+            start: {0, 0},
+            destination: {0, 0},
+            col_count: 0,
+            row_count: 0
+
+  def load(input) do
+    rows =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n")
+      |> Enum.with_index()
+      |> Enum.into(%{}, fn {string, key} -> {key, string} end)
+
+    map = %__MODULE__{
+      rows: rows,
+      row_count: Enum.count(rows),
+      col_count: String.length(rows[0])
+    }
+
+    start = find(map, "S")
+    destination = find(map, "E")
+
+    %{
+      map
+      | start: start,
+        destination: destination,
+        distances: %{destination => 0}
+    }
+  end
+
+  def walk(map) do
+    q = :queue.new()
+    walk(map, :queue.in(map.destination, q))
+  end
+
+  def walk(map, queue) do
+    case :queue.out(queue) do
+      {{:value, cursor}, queue} ->
+        current_elevation = elevation(map, cursor)
+        current_distance = distance(map, cursor)
+
+        next_nodes =
+          map
+          |> neighbors(cursor)
+          |> Enum.filter(fn neighbor -> accessible_from?(map, neighbor, current_elevation) end)
+          |> Enum.filter(fn neighbor -> is_nil(distance(map, neighbor)) end)
+
+        new_queue = Enum.reduce(next_nodes, queue, fn node, queue -> :queue.in(node, queue) end)
+
+        new_map =
+          Enum.reduce(next_nodes, map, fn node, map ->
+            %{map | distances: Map.put(map.distances, node, current_distance + 1)}
+          end)
+
+        walk(new_map, new_queue)
+
+      _ ->
+        map
+    end
+  end
+
+  def elevation(map, point) do
+    case letter_at(map, point) do
+      "S" -> char("a")
+      "E" -> char("z")
+      other -> char(other)
+    end
+  end
+
+  def letter_at(%{rows: rows}, {row, col}), do: rows |> Map.get(row) |> String.at(col)
+
+  def char(cell_value), do: cell_value |> String.to_charlist() |> List.first()
+
+  def distance(map, {row, col}) do
+    Map.get(map.distances, {row, col})
+  end
+
+  def find(%{row_count: row_count, col_count: col_count} = map, value) do
+    for row <- 0..(row_count - 1), col <- 0..(col_count - 1) do
+      {row, col}
+    end
+    |> Enum.find(fn point -> letter_at(map, point) == value end)
+  end
+
+  def filter(%{row_count: row_count, col_count: col_count} = map, value) do
+    for row <- 0..(row_count - 1), col <- 0..(col_count - 1) do
+      {row, col}
+    end
+    |> Enum.filter(fn point -> letter_at(map, point) == value end)
+  end
+
+  def accessible_from?(map, neighbor, current_elevation) do
+    current_elevation <= elevation(map, neighbor) + 1
+  end
+
+  def neighbors(map, cursor) do
+    [:up, :down, :left, :right]
+    |> Enum.map(fn dir -> neighbor(map, cursor, dir) end)
+    |> Enum.filter(&(!is_nil(&1)))
+  end
+
+  def neighbor(_map, {row, col}, :up) when row > 0, do: {row - 1, col}
+
+  def neighbor(%{row_count: row_count}, {row, col}, :down) when row < row_count - 1,
+    do: {row + 1, col}
+
+  def neighbor(_map, {row, col}, :left) when col > 0, do: {row, col - 1}
+
+  def neighbor(%{col_count: col_count}, {row, col}, :right) when col < col_count - 1,
+    do: {row, col + 1}
+
+  def neighbor(_, _, _), do: nil
+end
+```
+
+```elixir
+sample_map = sample_input |> ElevationMap.load() |> ElevationMap.walk()
+Map.get(sample_map.distances, sample_map.start)
+```
+
+```elixir
+real_map = real_input |> ElevationMap.load() |> ElevationMap.walk()
+Map.get(real_map.distances, real_map.start)
+```
+
+```elixir
+sample_map
+|> ElevationMap.filter("a")
+|> Enum.map(fn node -> ElevationMap.distance(sample_map, node) end)
+|> Enum.sort()
+|> List.first()
+```
+
+```elixir
+real_map
+|> ElevationMap.filter("a")
+|> Enum.map(fn node -> ElevationMap.distance(real_map, node) end)
+|> Enum.sort()
+|> List.first()
+```
