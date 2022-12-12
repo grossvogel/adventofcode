@@ -1,0 +1,152 @@
+# Day 11: Monkey in the Middle
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 11
+
+* Puzzle: https://adventofcode.com/2022/day/11
+* Input: https://adventofcode.com/2022/day/11/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule MonkeyPack do
+  def load(input, stressed? \\ false) do
+    monkeys =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n\n")
+      |> Enum.map(fn lines -> Monkey.load(lines, stressed?) end)
+      |> Enum.into(%{}, fn monkey -> {monkey.id, monkey} end)
+
+    monkeys
+  end
+
+  def process(monkeys, rounds) do
+    0..(rounds - 1)
+    |> Enum.reduce(monkeys, fn _count, monkeys -> MonkeyPack.process_round(monkeys) end)
+  end
+
+  def process_round(monkeys) do
+    0..(Enum.count(monkeys) - 1)
+    |> Enum.reduce(monkeys, fn index, monkeys ->
+      monkey = monkeys["#{index}"]
+      {items, updated_monkey} = Monkey.inspect_items(monkey)
+      distribute_items(Map.put(monkeys, monkey.id, updated_monkey), items)
+    end)
+  end
+
+  def distribute_items(monkeys, items) do
+    Enum.reduce(items, monkeys, fn {monkey_id, worry}, monkeys ->
+      Map.put(monkeys, monkey_id, Monkey.receive_item(monkeys[monkey_id], worry))
+    end)
+  end
+end
+```
+
+```elixir
+defmodule Monkey do
+  defstruct id: "0",
+            items: [],
+            total_processed: 0,
+            operation: nil,
+            test: nil,
+            true_recipient: "1",
+            false_recipient: "1",
+            stressed?: false
+
+  def load(details, stressed? \\ false) do
+    details
+    |> String.split("\n")
+    |> Enum.reduce(
+      %__MODULE__{stressed?: stressed?},
+      fn line, monkey -> process_details(monkey, line) end
+    )
+  end
+
+  def inspect_items(monkey) do
+    items =
+      Enum.map(monkey.items, fn initial_worry ->
+        final_worry = initial_worry |> monkey.operation.() |> div(3)
+
+        recipient =
+          if monkey.test.(final_worry), do: monkey.true_recipient, else: monkey.false_recipient
+
+        {recipient, final_worry}
+      end)
+
+    {items, %{monkey | items: [], total_processed: monkey.total_processed + length(items)}}
+  end
+
+  def receive_item(monkey, worry), do: %{monkey | items: monkey.items ++ [worry]}
+
+  def process_details(monkey, "Monkey " <> <<id::binary-size(1)>> <> ":") do
+    %{monkey | id: id}
+  end
+
+  def process_details(monkey, "  Starting items: " <> raw_items) do
+    items =
+      raw_items
+      |> String.split(",")
+      |> Enum.map(fn item -> item |> String.trim() |> String.to_integer() end)
+
+    %{monkey | items: items}
+  end
+
+  def process_details(monkey, "  Operation: new = old * old") do
+    %{monkey | operation: fn worry -> worry * worry end}
+  end
+
+  def process_details(
+        monkey,
+        "  Operation: new = old " <> <<op::binary-size(1)>> <> " " <> raw_amount
+      ) do
+    amount = String.to_integer(raw_amount)
+
+    operation =
+      case op do
+        "+" -> fn worry -> worry + amount end
+        "*" -> fn worry -> worry * amount end
+      end
+
+    %{monkey | operation: operation}
+  end
+
+  def process_details(monkey, "  Test: divisible by " <> raw_divisor) do
+    divisor = String.to_integer(raw_divisor)
+    %{monkey | test: fn worry -> rem(worry, divisor) == 0 end}
+  end
+
+  def process_details(monkey, "    If true: throw to monkey " <> recipient) do
+    %{monkey | true_recipient: recipient}
+  end
+
+  def process_details(monkey, "    If false: throw to monkey " <> recipient) do
+    %{monkey | false_recipient: recipient}
+  end
+end
+```
+
+```elixir
+sample_input |> MonkeyPack.load() |> MonkeyPack.process(20)
+```
+
+```elixir
+real_input |> MonkeyPack.load() |> MonkeyPack.process(20)
+```
+
+```elixir
+266 * 274
+```
+
+```elixir
+sample_input |> MonkeyPack.load(true) |> MonkeyPack.process(200)
+```
