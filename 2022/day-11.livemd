@@ -24,10 +24,20 @@ defmodule MonkeyPack do
       input
       |> Kino.Input.read()
       |> String.split("\n\n")
-      |> Enum.map(fn lines -> Monkey.load(lines, stressed?) end)
+      |> Enum.map(fn lines -> Monkey.load(lines) end)
       |> Enum.into(%{}, fn monkey -> {monkey.id, monkey} end)
 
-    monkeys
+    if stressed? do
+      lcm = monkeys |> Map.values() |> Enum.map(& &1.divisor) |> Enum.product()
+
+      monkeys
+      |> Enum.map(fn {key, monkey} ->
+        {key, %{monkey | finalize: fn worry -> rem(worry, lcm) end}}
+      end)
+      |> Enum.into(%{})
+    else
+      monkeys
+    end
   end
 
   def process(monkeys, rounds) do
@@ -58,16 +68,16 @@ defmodule Monkey do
             items: [],
             total_processed: 0,
             operation: nil,
-            test: nil,
+            divisor: 1,
             true_recipient: "1",
             false_recipient: "1",
-            stressed?: false
+            finalize: nil
 
-  def load(details, stressed? \\ false) do
+  def load(details) do
     details
     |> String.split("\n")
     |> Enum.reduce(
-      %__MODULE__{stressed?: stressed?},
+      %__MODULE__{finalize: fn worry -> div(worry, 3) end},
       fn line, monkey -> process_details(monkey, line) end
     )
   end
@@ -75,16 +85,20 @@ defmodule Monkey do
   def inspect_items(monkey) do
     items =
       Enum.map(monkey.items, fn initial_worry ->
-        final_worry = initial_worry |> monkey.operation.() |> div(3)
+        final_worry = initial_worry |> monkey.operation.() |> monkey.finalize.()
 
         recipient =
-          if monkey.test.(final_worry), do: monkey.true_recipient, else: monkey.false_recipient
+          if Monkey.test(monkey, final_worry),
+            do: monkey.true_recipient,
+            else: monkey.false_recipient
 
         {recipient, final_worry}
       end)
 
     {items, %{monkey | items: [], total_processed: monkey.total_processed + length(items)}}
   end
+
+  def test(%{divisor: divisor}, worry), do: rem(worry, divisor) == 0
 
   def receive_item(monkey, worry), do: %{monkey | items: monkey.items ++ [worry]}
 
@@ -122,7 +136,7 @@ defmodule Monkey do
 
   def process_details(monkey, "  Test: divisible by " <> raw_divisor) do
     divisor = String.to_integer(raw_divisor)
-    %{monkey | test: fn worry -> rem(worry, divisor) == 0 end}
+    %{monkey | divisor: divisor}
   end
 
   def process_details(monkey, "    If true: throw to monkey " <> recipient) do
@@ -148,5 +162,9 @@ real_input |> MonkeyPack.load() |> MonkeyPack.process(20)
 ```
 
 ```elixir
-sample_input |> MonkeyPack.load(true) |> MonkeyPack.process(200)
+real_input |> MonkeyPack.load(true) |> MonkeyPack.process(10_000)
+```
+
+```elixir
+123_733 * 123_741
 ```
