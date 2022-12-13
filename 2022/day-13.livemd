@@ -1,0 +1,120 @@
+# Day 13: Distress Signal
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 13
+
+* Puzzle: https://adventofcode.com/2022/day/13
+* Input: https://adventofcode.com/2022/day/13/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+parse_pairs = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n\n")
+  |> Enum.map(fn raw_pair ->
+    [{a, []}, {b, []}] = raw_pair |> String.split("\n") |> Enum.map(&Code.eval_string/1)
+    {a, b}
+  end)
+end
+```
+
+```elixir
+defmodule Comparator do
+  # wrap integers when comparing against a list
+  def compare(a, b) when is_list(a) and is_integer(b), do: compare(a, [b])
+  def compare(a, b) when is_integer(a) and is_list(b), do: compare([a], b)
+
+  # left list should be no longer than right list
+  def compare([], [_ | _]), do: :correct
+  def compare([_ | _], []), do: :incorrect
+
+  # if the list heads match, compare the tails
+  # otherwise compare the list heads
+  def compare([x | tail_a], [x | tail_b]), do: compare(tail_a, tail_b)
+
+  def compare([a | tail_a], [b | tail_b]) do
+    case compare(a, b) do
+      nil -> compare(tail_a, tail_b)
+      value -> value
+    end
+  end
+
+  # if both are integers, left should be lower
+  def compare(a, b) when is_integer(a) and is_integer(b) do
+    if a < b, do: :correct, else: :incorrect
+  end
+
+  def compare([], []), do: nil
+end
+```
+
+```elixir
+find_correct_indices = fn pairs ->
+  pairs
+  |> Enum.with_index()
+  |> Enum.map(fn {{a, b}, index} -> {index + 1, Comparator.compare(a, b)} end)
+  |> Enum.filter(fn {_index, value} -> value == :correct end)
+  |> Enum.map(fn {index, _} -> index end)
+  |> Enum.sum()
+end
+```
+
+```elixir
+sample_input |> parse_pairs.() |> find_correct_indices.()
+```
+
+```elixir
+real_input |> parse_pairs.() |> find_correct_indices.()
+```
+
+```elixir
+parse_all = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n\n")
+  |> Enum.flat_map(fn raw_pair ->
+    [{a, []}, {b, []}] = raw_pair |> String.split("\n") |> Enum.map(&Code.eval_string/1)
+    [a, b]
+  end)
+end
+
+find_index = fn signals, divider ->
+  lesser_signals =
+    signals
+    |> Enum.filter(fn signal -> Comparator.compare(signal, divider) == :correct end)
+    |> Enum.count()
+
+  lesser_signals + 1
+end
+```
+
+```elixir
+sample_input |> parse_all.() |> List.insert_at(0, [[6]]) |> find_index.([[2]])
+```
+
+```elixir
+sample_input |> parse_all.() |> List.insert_at(0, [[2]]) |> find_index.([[6]])
+```
+
+```elixir
+real_input |> parse_all.() |> List.insert_at(0, [[6]]) |> find_index.([[2]])
+```
+
+```elixir
+real_input |> parse_all.() |> List.insert_at(0, [[2]]) |> find_index.([[6]])
+```
+
+```elixir
+109 * 199
+```
