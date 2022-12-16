@@ -1,0 +1,152 @@
+# Day 14: Regolith Reservoir
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 14
+
+* Puzzle: https://adventofcode.com/2022/day/14
+* Input: https://adventofcode.com/2022/day/14/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Sand do
+  defstruct position: {500, 0}, at_rest?: false, falling_forever?: false
+end
+```
+
+```elixir
+defmodule Cavern do
+  defstruct walls: MapSet.new(),
+            sand: MapSet.new(),
+            bottom: 0,
+            entry_blocked?: false,
+            with_floor?: false
+
+  def is_blocked?(cavern, position),
+    do: is_rock?(cavern, position) or is_sand?(cavern, position) or is_floor?(cavern, position)
+
+  def is_rock?(%{walls: walls}, position), do: MapSet.member?(walls, position)
+
+  def is_sand?(%{sand: sand}, position), do: MapSet.member?(sand, position)
+
+  def is_floor?(%{with_floor?: with_floor?, bottom: bottom}, {_x, y}),
+    do: with_floor? and y == bottom + 2
+
+  def simulate(%{bottom: bottom, with_floor?: false} = cavern, %{position: {_, y}} = sand)
+      when y > bottom do
+    {cavern, %{sand | falling_forever?: true}}
+  end
+
+  def simulate(cavern, %{position: {x, y}} = sand) do
+    cond do
+      !is_blocked?(cavern, {x, y + 1}) ->
+        simulate(cavern, %{sand | position: {x, y + 1}})
+
+      !is_blocked?(cavern, {x - 1, y + 1}) ->
+        simulate(cavern, %{sand | position: {x - 1, y + 1}})
+
+      !is_blocked?(cavern, {x + 1, y + 1}) ->
+        simulate(cavern, %{sand | position: {x + 1, y + 1}})
+
+      true ->
+        {add_sand(cavern, {x, y}), %{sand | at_rest?: true}}
+    end
+  end
+
+  def add_sand(cavern, {x, y}) do
+    %{cavern | sand: MapSet.put(cavern.sand, {x, y}), entry_blocked?: x == 500 && y == 0}
+  end
+
+  def add_cell(cavern, {x, y}) do
+    %{cavern | walls: MapSet.put(cavern.walls, {x, y}), bottom: max(cavern.bottom, y)}
+  end
+
+  # single-segment path
+  def add_path(cavern, [start_cell, end_cell]), do: add_segment(cavern, start_cell, end_cell)
+
+  # multi-segment path
+  def add_path(cavern, [start_cell, next_cell | rest]) do
+    cavern
+    |> add_segment(start_cell, next_cell)
+    |> add_path([next_cell | rest])
+  end
+
+  # single-cell wall
+  def add_segment(cavern, only_cell, only_cell), do: add_cell(cavern, only_cell)
+
+  # vertical wall
+  def add_segment(cavern, {x, startY} = start_cell, {x, endY} = end_cell) do
+    increment = if startY < endY, do: 1, else: -1
+    next_cell = {x, startY + increment}
+
+    cavern
+    |> add_cell(start_cell)
+    |> add_segment(next_cell, end_cell)
+  end
+
+  # horizontal wall
+  def add_segment(cavern, {startX, y} = start_cell, {endX, y} = end_cell) do
+    increment = if startX < endX, do: 1, else: -1
+    next_cell = {startX + increment, y}
+
+    cavern
+    |> add_cell(start_cell)
+    |> add_segment(next_cell, end_cell)
+  end
+end
+```
+
+```elixir
+parse_cell = fn cell_string ->
+  cell_string |> String.split(",") |> Enum.map(&String.to_integer/1) |> List.to_tuple()
+end
+
+parse_input = fn input, with_floor? ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.map(fn line -> line |> String.split(" -> ") |> Enum.map(parse_cell) end)
+  |> Enum.reduce(%Cavern{with_floor?: with_floor?}, fn path, cavern ->
+    Cavern.add_path(cavern, path)
+  end)
+end
+
+simulate = fn input, with_floor? ->
+  cavern = parse_input.(input, with_floor?)
+
+  [nil]
+  |> Stream.cycle()
+  |> Enum.reduce_while({cavern, %Sand{}}, fn _index, {cavern, sand} ->
+    case Cavern.simulate(cavern, sand) do
+      {cavern, %{falling_forever?: true}} -> {:halt, cavern}
+      {%{entry_blocked?: true} = cavern, _sand} -> {:halt, cavern}
+      {cavern, _sand} -> {:cont, {cavern, %Sand{}}}
+    end
+  end)
+end
+```
+
+```elixir
+sample_input |> simulate.(false) |> Map.get(:sand) |> Enum.count()
+```
+
+```elixir
+real_input |> simulate.(false) |> Map.get(:sand) |> Enum.count()
+```
+
+```elixir
+sample_input |> simulate.(true) |> Map.get(:sand) |> Enum.count()
+```
+
+```elixir
+real_input |> simulate.(true) |> Map.get(:sand) |> Enum.count()
+```
