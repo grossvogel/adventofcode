@@ -1,0 +1,176 @@
+# Day 21: Monkey Math
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 21
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Equation do
+  defstruct first: nil, second: nil, operation: nil
+
+  def new(first, second, operation),
+    do: %__MODULE__{first: first, second: second, operation: operation}
+
+  def operation(%__MODULE__{operation: op}), do: operation(op)
+
+  def operation(op) when is_binary(op) do
+    case op do
+      "+" -> fn a, b -> a + b end
+      "-" -> fn a, b -> a - b end
+      "/" -> fn a, b -> a / b end
+      "*" -> fn a, b -> a * b end
+    end
+  end
+end
+```
+
+```elixir
+defmodule Expression do
+  defstruct type: nil, value: nil
+
+  def new(number) when is_integer(number), do: %__MODULE__{type: :number, value: number}
+
+  def new(func) when is_function(func), do: %__MODULE__{type: :function, value: func}
+
+  def combine(%{type: :number, value: one}, op, %{type: :number, value: two}),
+    do: %__MODULE__{type: :number, value: Equation.operation(op).(one, two)}
+
+  def combine(%{type: :function, value: one}, op, %{type: :number, value: two}),
+    do: %__MODULE__{
+      type: :function,
+      value: fn humn -> Equation.operation(op).(one.(humn), two) end
+    }
+
+  def combine(%{type: :number, value: one}, op, %{type: :function, value: two}),
+    do: %__MODULE__{
+      type: :function,
+      value: fn humn -> Equation.operation(op).(one, two.(humn)) end
+    }
+
+  def combine(%{type: :function, value: one}, op, %{type: :function, value: two}),
+    do: %__MODULE__{
+      type: :function,
+      value: fn humn -> Equation.operation(op).(one.(humn), two.(humn)) end
+    }
+end
+```
+
+```elixir
+defmodule State do
+  defstruct resolved: %{}, equations: %{}, part2: false
+
+  def new(input, part2 \\ false) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n")
+    |> Enum.reduce(%__MODULE__{part2: part2}, &process_monkey(&2, &1))
+  end
+
+  def process_monkey(state, <<name::binary-size(4)>> <> ": " <> value) do
+    case Integer.parse(value) do
+      {integer, ""} -> %{state | resolved: Map.put(state.resolved, name, integer)}
+      :error -> process_equation(state, name, value)
+    end
+  end
+
+  def process_equation(
+        state,
+        name,
+        <<a::binary-size(4)>> <> " " <> <<op::binary-size(1)>> <> " " <> <<b::binary-size(4)>>
+      ) do
+    %{state | equations: Map.put(state.equations, name, Equation.new(a, b, op))}
+  end
+
+  def resolve_value(%{part2: true} = state, "humn") do
+    {state, %Expression{type: :function, value: fn a -> a end}}
+  end
+
+  def resolve_value(state, name) do
+    case Map.get(state.resolved, name) do
+      nil ->
+        {state, value} = resolve_equation(state, name)
+        {%{state | resolved: Map.put(state.resolved, name, value)}, value}
+
+      number ->
+        {state, %Expression{type: :number, value: number}}
+    end
+  end
+
+  def resolve_equation(state, name) do
+    equation = Map.get(state.equations, name)
+    {state, first_value} = resolve_value(state, equation.first)
+    {state, second_value} = resolve_value(state, equation.second)
+    {state, Expression.combine(first_value, equation.operation, second_value)}
+  end
+end
+```
+
+```elixir
+sample_input |> State.new() |> State.resolve_value("root") |> elem(1)
+```
+
+```elixir
+real_input |> State.new() |> State.resolve_value("root") |> elem(1)
+```
+
+```elixir
+%{value: lhs} = sample_input |> State.new(true) |> State.resolve_value("pppw") |> elem(1)
+%{value: rhs} = sample_input |> State.new(true) |> State.resolve_value("sjmn") |> elem(1)
+{lhs, rhs}
+```
+
+```elixir
+0..500 |> Enum.map(fn i -> {i, lhs.(i)} end) |> Enum.find(fn {_, val} -> val == 150 end)
+```
+
+```elixir
+%{value: lhs} = real_input |> State.new(true) |> State.resolve_value("prrg") |> elem(1)
+%{value: rhs} = real_input |> State.new(true) |> State.resolve_value("jntz") |> elem(1)
+{lhs, rhs}
+```
+
+```elixir
+start = 3_221_245_824_350
+
+start..(start + 50)
+|> Enum.map(fn i ->
+  input = i
+  val = lhs.(input)
+  {input, val, val - 28_379_346_560_301}
+end)
+```
+
+```elixir
+defmodule BinarySearch do
+  def find(error, guess1, guess2) do
+    test1 = error.(guess1)
+    test2 = error.(guess2)
+    middle = div(guess1 + guess2, 2)
+    test_middle = error.(middle)
+
+    cond do
+      test1 == 0 -> guess1
+      test2 == 0 -> guess2
+      test_middle == 0 -> middle
+      test1 * test_middle > 0 -> find(error, middle, guess2)
+      true -> find(error, guess1, middle)
+    end
+  end
+end
+
+BinarySearch.find(
+  fn guess -> lhs.(guess) - 28_379_346_560_301 end,
+  3_200_000_000_000,
+  3_300_000_000_000
+)
+```

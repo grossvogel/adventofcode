@@ -1,0 +1,174 @@
+# Day 15: Beacon Exclusion Zone
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 15
+
+* Puzzle: https://adventofcode.com/2022/day/15
+* Input: https://adventofcode.com/2022/day/15/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Sensor do
+  defstruct position: nil, beacon: nil
+  def new(sensor, beacon), do: %__MODULE__{position: sensor, beacon: beacon}
+end
+
+defmodule Point do
+  defstruct x: nil, y: nil
+  def new(x, y), do: %__MODULE__{x: x, y: y}
+end
+
+defmodule InclusiveRange do
+  defstruct min: nil, max: nil
+
+  def new(min, max), do: %__MODULE__{min: min, max: max}
+
+  def intersect_or_adjacent?(one, two) do
+    one.min <= two.max + 1 && two.min <= one.max + 1
+  end
+
+  def merge(%{min: min1} = one, %{min: min2} = two) when min2 < min1 do
+    merge(two, one)
+  end
+
+  def merge(one, two) do
+    %__MODULE__{min: one.min, max: max(one.max, two.max)}
+  end
+
+  def includes_value?(%{min: min, max: max}, value), do: min <= value and value <= max
+
+  def size(%{min: min, max: max}), do: max - min + 1
+end
+
+defmodule Ranges do
+  defstruct ranges: []
+
+  def put(ranges, nil), do: ranges
+
+  def put(ranges, new_range) do
+    case Enum.split_with(ranges.ranges, &InclusiveRange.intersect_or_adjacent?(&1, new_range)) do
+      {[], all_ranges} ->
+        %{ranges | ranges: [new_range | all_ranges]}
+
+      {overlapping, non_overlapping} ->
+        merged_range =
+          Enum.reduce(overlapping, new_range, fn range, running ->
+            InclusiveRange.merge(range, running)
+          end)
+
+        %{ranges | ranges: [merged_range | non_overlapping]}
+    end
+  end
+
+  def include_value?(%{ranges: ranges}, value) do
+    Enum.any?(ranges, &InclusiveRange.includes_value?(&1, value))
+  end
+
+  def total_size(%{ranges: ranges}) do
+    ranges |> Enum.map(&InclusiveRange.size/1) |> Enum.sum()
+  end
+
+  def has_holes?(%{ranges: ranges}, min, max) do
+    [first | rest] = ranges
+
+    cond do
+      rest == [] and first.min <= min and first.max >= max -> false
+      true -> true
+    end
+  end
+end
+```
+
+```elixir
+parse_sensor = fn raw ->
+  sensor_pattern =
+    ~r/Sensor at x=([\d-]+), y=([\d-]+): closest beacon is at x=([\d-]+), y=([\d-]+)/
+
+  [_full | tail] = Regex.run(sensor_pattern, raw)
+  [sensor_x, sensor_y, beacon_x, beacon_y] = Enum.map(tail, &String.to_integer/1)
+  Sensor.new(Point.new(sensor_x, sensor_y), Point.new(beacon_x, beacon_y))
+end
+
+parse_input = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n")
+  |> Enum.map(parse_sensor)
+end
+```
+
+```elixir
+excluded_range_from_row = fn %Sensor{position: sensor, beacon: beacon}, y ->
+  beacon_distance = abs(sensor.x - beacon.x) + abs(sensor.y - beacon.y)
+  y_distance = abs(y - sensor.y)
+  x_distance = beacon_distance - y_distance
+
+  if x_distance < 0 do
+    nil
+  else
+    InclusiveRange.new(sensor.x - x_distance, sensor.x + x_distance)
+  end
+end
+
+excluded_points = fn sensors, y ->
+  ranges =
+    Enum.reduce(sensors, %Ranges{}, fn sensor, ranges ->
+      range = excluded_range_from_row.(sensor, y)
+      Ranges.put(ranges, range)
+    end)
+
+  beacons_to_subtract =
+    sensors
+    |> Enum.into(MapSet.new(), fn %{beacon: %{x: x, y: y}} -> {x, y} end)
+    |> Enum.filter(fn {beacon_x, beacon_y} ->
+      beacon_y == y and Ranges.include_value?(ranges, beacon_x)
+    end)
+
+  Ranges.total_size(ranges) - Enum.count(beacons_to_subtract)
+end
+```
+
+```elixir
+sample_input |> parse_input.() |> excluded_points.(10)
+```
+
+```elixir
+real_input |> parse_input.() |> excluded_points.(2_000_000)
+```
+
+```elixir
+map_rows = fn sensors, min, max ->
+  min..max
+  |> Enum.reduce(%{}, fn y, rows ->
+    ranges =
+      Enum.reduce(sensors, %Ranges{}, fn sensor, ranges ->
+        range = excluded_range_from_row.(sensor, y)
+        Ranges.put(ranges, range)
+      end)
+
+    if Ranges.has_holes?(ranges, min, max) do
+      Map.put(rows, y, ranges)
+    else
+      rows
+    end
+  end)
+end
+```
+
+```elixir
+sample_input |> parse_input.() |> map_rows.(0, 20)
+```
+
+```elixir
+real_input |> parse_input.() |> map_rows.(0, 50_000)
+```

@@ -1,0 +1,201 @@
+# Day 17: Pyroclastic Flow
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 17
+
+* Puzzle: https://adventofcode.com/2022/day/17
+* Input: https://adventofcode.com/2022/day/17/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Rock do
+  # position is the bottom-left corner of the rock
+  defstruct position: {2, 3}, points: :dash
+
+  @shapes %{
+    0 => [{0, 0}, {1, 0}, {2, 0}, {3, 0}],
+    1 => [{1, 0}, {0, 1}, {1, 1}, {2, 1}, {1, 2}],
+    2 => [{0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}],
+    3 => [{0, 0}, {0, 1}, {0, 2}, {0, 3}],
+    4 => [{0, 0}, {1, 0}, {0, 1}, {1, 1}]
+  }
+
+  def new(index, max_height) do
+    %__MODULE__{
+      points: Map.get(@shapes, rem(index, 5)),
+      position: {2, max_height + 3}
+    }
+  end
+
+  def translate(%{position: {x, y}} = rock, :down), do: %{rock | position: {x, y - 1}}
+  def translate(%{position: {x, y}} = rock, "<"), do: %{rock | position: {x - 1, y}}
+  def translate(%{position: {x, y}} = rock, ">"), do: %{rock | position: {x + 1, y}}
+
+  def points(%{points: points, position: {x, y}}) do
+    Enum.map(points, fn {pointX, pointY} -> {pointX + x, pointY + y} end)
+  end
+end
+```
+
+```elixir
+defmodule Wind do
+  defstruct instructions: "", working: ""
+
+  def new(instructions) do
+    %__MODULE__{
+      working: instructions,
+      instructions: instructions
+    }
+  end
+
+  def next(%{working: "", instructions: instructions} = wind) do
+    next(%{wind | working: instructions})
+  end
+
+  def next(%{working: <<head::binary-size(1)>> <> rest} = wind) do
+    {head, %{wind | working: rest}}
+  end
+end
+```
+
+```elixir
+defmodule ForgetfulSet do
+  defstruct a: MapSet.new(), b: MapSet.new(), active: :a, count: 0, memory: 100
+
+  def new(memory \\ 100) do
+    %__MODULE__{memory: memory}
+  end
+
+  def put(set, value) do
+    set
+    |> Map.update!(set.active, fn active -> MapSet.put(active, value) end)
+    |> maybe_swap_active()
+  end
+
+  def member?(set, value) do
+    MapSet.member?(set.a, value) or MapSet.member?(set.b, value)
+  end
+
+  defp maybe_swap_active(%{count: count, memory: memory} = set) when count >= memory,
+    do: swap_active(set)
+
+  defp maybe_swap_active(set), do: set
+
+  defp swap_active(%{active: :a} = set), do: %{set | active: :b, b: MapSet.new()}
+end
+```
+
+```elixir
+defmodule Chimney do
+  defstruct rocks: ForgetfulSet.new(), max_height: 0, rock_count: 0
+
+  def process_rocks(wind_input, count) do
+    wind =
+      wind_input
+      |> Kino.Input.read()
+      |> Wind.new()
+
+    0..4
+    |> Stream.cycle()
+    |> Enum.take(count)
+    |> Enum.reduce({%__MODULE__{}, wind}, fn index, {chimney, wind} ->
+      index
+      |> Rock.new(chimney.max_height)
+      |> then(&process_rock(chimney, wind, &1))
+    end)
+    |> then(&elem(&1, 0))
+  end
+
+  def process_rock(chimney, wind, rock) do
+    [nil]
+    |> Stream.cycle()
+    |> Enum.reduce_while({chimney, wind, rock}, fn _index, {chimney, wind, rock} ->
+      case move_rock(chimney, wind, rock) do
+        {:at_rest, chimney, wind, _rock} -> {:halt, {chimney, wind}}
+        {:falling, chimney, wind, rock} -> {:cont, {chimney, wind, rock}}
+      end
+    end)
+  end
+
+  def move_rock(chimney, wind, rock) do
+    {wind_dir, next_wind} = Wind.next(wind)
+    blown_rock = Rock.translate(rock, wind_dir)
+    blown_rock = if collides?(chimney, blown_rock), do: rock, else: blown_rock
+    fallen_rock = Rock.translate(blown_rock, :down)
+
+    {state, next_chimney, next_rock} =
+      if collides?(chimney, fallen_rock) do
+        {:at_rest, add_rock(chimney, blown_rock), blown_rock}
+      else
+        {:falling, chimney, fallen_rock}
+      end
+
+    {state, next_chimney, next_wind, next_rock}
+  end
+
+  def collides?(chimney, %Rock{} = rock) do
+    rock
+    |> Rock.points()
+    |> Enum.any?(&collides?(chimney, &1))
+  end
+
+  def collides?(chimney, {x, y}) do
+    x < 0 or y < 0 or x > 6 or ForgetfulSet.member?(chimney.rocks, {x, y})
+  end
+
+  def add_rock(chimney, %Rock{} = rock) do
+    Enum.reduce(
+      Rock.points(rock),
+      %{chimney | rock_count: chimney.rock_count + 1},
+      fn point, chimney -> add_rock(chimney, point) end
+    )
+  end
+
+  def add_rock(chimney, {x, y}) do
+    %{
+      chimney
+      | rocks: ForgetfulSet.put(chimney.rocks, {x, y}),
+        max_height: max(chimney.max_height, y + 1)
+    }
+  end
+
+  def inspect(%{rocks: rocks, max_height: max_height}) do
+    for y <- max_height..0 do
+      for x <- 0..6 do
+        if ForgetfulSet.member?(rocks, {x, y}), do: "#", else: "."
+      end
+      |> Enum.join()
+    end
+    |> Enum.join("\n")
+    |> IO.puts()
+  end
+end
+```
+
+```elixir
+sample_input |> Chimney.process_rocks(2022)
+```
+
+```elixir
+real_input |> Chimney.process_rocks(2022)
+```
+
+```elixir
+wind = real_input |> Kino.Input.read() |> Wind.new()
+
+0..1_000_000_000_000
+|> Enum.reduce(wind, fn index, wind ->
+  {_next, new_wind} = Wind.next(wind)
+  new_wind
+end)
+```
