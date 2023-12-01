@@ -1,0 +1,72 @@
+# Day 1: Trebuchet?!
+
+```elixir
+Mix.install([{:kino, "~> 0.7.0"}])
+```
+
+## Day 1
+
+* Puzzle: https://adventofcode.com/2023/day/1
+* Input: https://adventofcode.com/2023/day/1/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Calibration do
+  @digits Enum.map(0..9, &Integer.to_string/1)
+
+  def sum(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.map(&extract_digits/1)
+    |> Enum.sum()
+  end
+
+  defp extract_digits(line) do
+    tens = first_digit(line, :forward) * 10
+    ones = line |> String.reverse() |> first_digit(:backward)
+    tens + ones
+  end
+
+  def first_digit(<<h::binary-size(1), _rest::binary>>, _) when h in @digits,
+    do: String.to_integer(h)
+
+  def first_digit("zero" <> _rest, :forward), do: 0
+  def first_digit("one" <> _rest, :forward), do: 1
+  def first_digit("two" <> _rest, :forward), do: 2
+  def first_digit("three" <> _rest, :forward), do: 3
+  def first_digit("four" <> _rest, :forward), do: 4
+  def first_digit("five" <> _rest, :forward), do: 5
+  def first_digit("six" <> _rest, :forward), do: 6
+  def first_digit("seven" <> _rest, :forward), do: 7
+  def first_digit("eight" <> _rest, :forward), do: 8
+  def first_digit("nine" <> _rest, :forward), do: 9
+  def first_digit("orez" <> _rest, :backward), do: 0
+  def first_digit("eno" <> _rest, :backward), do: 1
+  def first_digit("owt" <> _rest, :backward), do: 2
+  def first_digit("eerht" <> _rest, :backward), do: 3
+  def first_digit("ruof" <> _rest, :backward), do: 4
+  def first_digit("evif" <> _rest, :backward), do: 5
+  def first_digit("xis" <> _rest, :backward), do: 6
+  def first_digit("neves" <> _rest, :backward), do: 7
+  def first_digit("thgie" <> _rest, :backward), do: 8
+  def first_digit("enin" <> _rest, :backward), do: 9
+  def first_digit(<<_h::binary-size(1), rest::binary>>, dir), do: first_digit(rest, dir)
+  def first_digit("", _), do: 0
+end
+```
+
+```elixir
+Calibration.sum(sample_input)
+```
+
+```elixir
+Calibration.sum(real_input)
+```
