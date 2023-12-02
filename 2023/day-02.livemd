@@ -1,0 +1,114 @@
+# Day 2: Cube Conundrum
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 2
+
+* Puzzle: https://adventofcode.com/2023/day/2
+* Input: https://adventofcode.com/2023/day/2/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule CubeGame.Draw do
+  defstruct red: 0, blue: 0, green: 0
+
+  @draw_pattern ~r/,? ?(\d+) (red|green|blue)/
+
+  def parse(input) do
+    @draw_pattern
+    |> Regex.scan(input)
+    |> Enum.reduce(%__MODULE__{}, fn [_, count, color], draw ->
+      Map.put(draw, String.to_existing_atom(color), String.to_integer(count))
+    end)
+  end
+
+  def spans?(%__MODULE__{} = superset, %__MODULE__{} = subset) do
+    subset.red <= superset.red and
+      subset.blue <= superset.blue and
+      subset.green <= superset.green
+  end
+
+  def min_span(%__MODULE__{} = one, %__MODULE__{} = two) do
+    %__MODULE__{
+      red: max(one.red, two.red),
+      blue: max(one.blue, two.blue),
+      green: max(one.green, two.green)
+    }
+  end
+
+  def power(%__MODULE__{} = draw), do: draw.red * draw.blue * draw.green
+end
+
+defmodule CubeGame do
+  defstruct id: nil, draws: []
+
+  def parse("Game " <> rest) do
+    {id, ": " <> draw_inputs} = Integer.parse(rest)
+
+    draws =
+      draw_inputs
+      |> String.split(";", trim: true)
+      |> Enum.map(&CubeGame.Draw.parse/1)
+
+    %__MODULE__{id: id, draws: draws}
+  end
+
+  def min_bag(%__MODULE__{} = game) do
+    Enum.reduce(game.draws, %CubeGame.Draw{}, &CubeGame.Draw.min_span/2)
+  end
+
+  def possible?(%__MODULE__{} = game, %CubeGame.Draw{} = bag_contents) do
+    Enum.all?(game.draws, &CubeGame.Draw.spans?(bag_contents, &1))
+  end
+end
+```
+
+```elixir
+part_1_bag = %CubeGame.Draw{red: 12, green: 13, blue: 14}
+
+part_1 = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&CubeGame.parse/1)
+  |> Enum.filter(&CubeGame.possible?(&1, part_1_bag))
+  |> Enum.map(& &1.id)
+  |> Enum.sum()
+end
+```
+
+```elixir
+part_1.(sample_input)
+```
+
+```elixir
+part_1.(real_input)
+```
+
+```elixir
+part_2 = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&CubeGame.parse/1)
+  |> Enum.map(fn game -> game |> CubeGame.min_bag() |> CubeGame.Draw.power() end)
+  |> Enum.sum()
+end
+```
+
+```elixir
+part_2.(sample_input)
+```
+
+```elixir
+part_2.(real_input)
+```
