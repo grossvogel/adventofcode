@@ -1,0 +1,196 @@
+# Day 3: Gear Ratios
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 3
+
+* Puzzle: https://adventofcode.com/2023/day/3
+* Input: https://adventofcode.com/2023/day/3/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Symbols do
+  @non_symbols Enum.map(0..9, &to_string(&1)) ++ ["."]
+
+  def extract(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {line, line_no}, symbols ->
+      Map.merge(symbols, extract_line(line, line_no))
+    end)
+  end
+
+  defp extract_line(line, line_no, accum \\ %{}, offset \\ 0)
+
+  defp extract_line("", _line_no, symbols, _offset), do: symbols
+
+  defp extract_line(<<first::binary-size(1), rest::binary>>, line_no, symbols, offset) do
+    new_symbols =
+      if first in @non_symbols,
+        do: symbols,
+        else: Map.put(symbols, {line_no, offset}, first)
+
+    extract_line(rest, line_no, new_symbols, offset + 1)
+  end
+end
+```
+
+```elixir
+defmodule Numbers do
+  @digits Enum.map(0..9, &to_string/1)
+
+  def extract(input, symbols) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.with_index()
+    |> Enum.reduce(0, fn {line, line_no}, total ->
+      total + line_total(line, line_no, symbols)
+    end)
+  end
+
+  def line_total(line, line_number, symbols) do
+    parse(line, {line_number, 0}, symbols, 0)
+  end
+
+  defp parse("", _coords, _symbols, total), do: total
+
+  defp parse(<<first::binary-size(1), rest::binary>> = line, {line_no, offset}, symbols, total) do
+    if first in @digits do
+      {number, rest} = Integer.parse(line)
+      digit_count = floor(:math.log10(number)) + 1
+
+      part_no? =
+        Enum.any?(0..(digit_count - 1), &adjacent_to_symbol?({line_no, offset + &1}, symbols))
+
+      if part_no? do
+        parse(rest, {line_no, offset + digit_count}, symbols, total + number)
+      else
+        parse(rest, {line_no, offset + digit_count}, symbols, total)
+      end
+    else
+      parse(rest, {line_no, offset + 1}, symbols, total)
+    end
+  end
+
+  defp adjacent_to_symbol?({line, offset}, symbols) do
+    for y_step <- -1..1, x_step <- -1..1 do
+      {line + y_step, offset + x_step}
+    end
+    |> Enum.any?(fn coords -> Map.has_key?(symbols, coords) end)
+  end
+end
+```
+
+```elixir
+part_1 = fn input ->
+  symbols = Symbols.extract(input)
+  Numbers.extract(input, symbols)
+end
+```
+
+```elixir
+part_1.(sample_input)
+```
+
+```elixir
+part_1.(real_input)
+```
+
+```elixir
+defmodule Gears do
+  def extract(input) do
+    input
+    |> Symbols.extract()
+    |> Enum.filter(fn
+      {_coords, "*"} -> true
+      _ -> false
+    end)
+    |> Enum.into(%{}, fn {coords, "*"} -> {coords, []} end)
+  end
+end
+```
+
+```elixir
+defmodule GearRatios do
+  @digits Enum.map(0..9, &to_string/1)
+
+  def extract(input, gears) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.with_index()
+    |> Enum.reduce(gears, fn {line, line_no}, gears ->
+      extract_parts(line, line_no, gears)
+    end)
+    |> Enum.filter(fn
+      {_coords, [_one, _two]} -> true
+      _ -> false
+    end)
+    |> Enum.map(fn {_coords, [one, two]} -> one * two end)
+    |> Enum.sum()
+  end
+
+  def extract_parts(line, line_number, gears) do
+    parse(line, {line_number, 0}, gears)
+  end
+
+  defp parse("", _coords, gears), do: gears
+
+  defp parse(<<first::binary-size(1), rest::binary>> = line, {line_no, offset}, gears) do
+    if first in @digits do
+      {number, rest} = Integer.parse(line)
+      digit_count = floor(:math.log10(number)) + 1
+
+      adjacent_gears =
+        0..(digit_count - 1)
+        |> Enum.flat_map(fn digit_offset ->
+          adjacent_gears({line_no, offset + digit_offset}, gears)
+        end)
+        |> Enum.uniq()
+
+      new_gears =
+        Enum.reduce(adjacent_gears, gears, fn coords, gears ->
+          Map.update(gears, coords, [number], &[number | &1])
+        end)
+
+      parse(rest, {line_no, offset + digit_count}, new_gears)
+    else
+      parse(rest, {line_no, offset + 1}, gears)
+    end
+  end
+
+  defp adjacent_gears({line, offset}, gears) do
+    for y_step <- -1..1, x_step <- -1..1 do
+      {line + y_step, offset + x_step}
+    end
+    |> Enum.filter(&Map.has_key?(gears, &1))
+  end
+end
+```
+
+```elixir
+part_2 = fn input ->
+  gears = Gears.extract(input)
+  GearRatios.extract(input, gears)
+end
+```
+
+```elixir
+part_2.(sample_input)
+```
+
+```elixir
+part_2.(real_input)
+```
