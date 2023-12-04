@@ -1,0 +1,107 @@
+# Day 4: Scratchcards
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 4
+
+* Puzzle: https://adventofcode.com/2023/day/4
+* Input: https://adventofcode.com/2023/day/4/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Scratchcard do
+  defstruct id: 0, winners: MapSet.new(), draws: MapSet.new(), points: 0
+
+  def parse("Card   " <> card_text), do: parse("Card #{card_text}")
+
+  def parse("Card  " <> card_text), do: parse("Card #{card_text}")
+
+  def parse("Card " <> card_text) do
+    {card_no, ": " <> number_text} = Integer.parse(card_text)
+    [win_text, draw_text] = String.split(number_text, "|", trim: true)
+
+    %__MODULE__{
+      id: card_no,
+      winners: parse_number_list(win_text),
+      draws: parse_number_list(draw_text)
+    }
+  end
+
+  def match_count(%__MODULE__{winners: winners, draws: draws}) do
+    winners
+    |> MapSet.intersection(draws)
+    |> MapSet.size()
+  end
+
+  def score(%__MODULE__{} = card) do
+    case match_count(card) do
+      0 -> 0
+      n -> 2 ** (n - 1)
+    end
+  end
+
+  defp parse_number_list(text) do
+    text
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.map(&String.to_integer/1)
+    |> MapSet.new()
+  end
+end
+```
+
+```elixir
+part_1 = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&Scratchcard.parse/1)
+  |> Enum.map(&Scratchcard.score/1)
+  |> Enum.sum()
+end
+```
+
+```elixir
+part_1.(sample_input)
+```
+
+```elixir
+part_1.(real_input)
+```
+
+```elixir
+part_2 = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&Scratchcard.parse/1)
+  |> Enum.reduce({0, %{}}, fn card, {total, winnings} ->
+    this_card_count = 1 + Map.get(winnings, card.id, 0)
+    match_count = Scratchcard.match_count(card)
+
+    updated_winnings =
+      Enum.reduce(1..match_count//1, winnings, fn offset, prev_winnings ->
+        Map.update(prev_winnings, card.id + offset, this_card_count, &(this_card_count + &1))
+      end)
+
+    {total + this_card_count, updated_winnings}
+  end)
+  |> elem(0)
+end
+```
+
+```elixir
+part_2.(sample_input)
+```
+
+```elixir
+part_2.(real_input)
+```
