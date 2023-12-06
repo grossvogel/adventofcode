@@ -1,0 +1,153 @@
+# Day 5: If You Give A Seed A Fertilizer
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 5
+
+* Puzzle: https://adventofcode.com/2023/day/5
+* Input: https://adventofcode.com/2023/day/5/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule SeedRules.PartOne do
+  def parse(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n\n", trim: true)
+    |> Enum.reduce([], &process_segment/2)
+    |> Enum.min()
+  end
+
+  defp process_segment("seeds: " <> rest, []) do
+    rest |> String.split(" ") |> Enum.map(&String.to_integer/1)
+  end
+
+  defp process_segment(rules_raw, previous_values) do
+    rules = parse_rules(rules_raw)
+
+    Enum.map(previous_values, fn value ->
+      rule = Enum.find(rules, & &1.condition.(value))
+      rule.apply.(value)
+    end)
+  end
+
+  defp parse_rules(rules_raw) do
+    [_label | [rules]] = String.split(rules_raw, ":", trim: true)
+
+    rules
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      [dest_start, src_start, len] = line |> String.split(" ") |> Enum.map(&String.to_integer/1)
+
+      %{
+        condition: fn no -> src_start <= no && no < src_start + len end,
+        apply: fn no -> no + (dest_start - src_start) end
+      }
+    end)
+    |> Enum.concat([identity()])
+  end
+
+  defp identity, do: %{condition: fn _ -> true end, apply: & &1}
+end
+```
+
+```elixir
+SeedRules.PartOne.parse(sample_input)
+```
+
+```elixir
+SeedRules.PartOne.parse(real_input)
+```
+
+```elixir
+defmodule SeedRules.PartTwo do
+  def parse(input) do
+    [seeds | rules] =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n\n", trim: true)
+      |> Enum.map(&process_segment/1)
+
+    rules
+    |> Enum.reduce(seeds, fn ruleset, seed_values ->
+      Enum.flat_map(seed_values, &apply_rules(&1, ruleset))
+    end)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.min()
+  end
+
+  defp apply_rules(seeds, []), do: [seeds]
+
+  defp apply_rules({seed_start, seed_length} = seeds, [rule | rest_rules] = rules) do
+    cond do
+      seed_start + seed_length < rule.start ->
+        apply_rules(seeds, rest_rules)
+
+      seed_start > rule.start + rule.length ->
+        apply_rules(seeds, rest_rules)
+
+      seed_start >= rule.start and
+          seed_start + seed_length <= rule.start + rule.length ->
+        [{rule.apply.(seed_start), seed_length}]
+
+      seed_start < rule.start ->
+        [
+          {seed_start, rule.start - seed_start}
+          | apply_rules({rule.start, seed_length - (rule.start - seed_start)}, rules)
+        ]
+
+      true ->
+        [
+          {rule.apply.(seed_start), rule.length - (seed_start - rule.start)}
+          | apply_rules(
+              {rule.start + rule.length, seed_start + seed_length - (rule.start + rule.length)},
+              rest_rules
+            )
+        ]
+    end
+  end
+
+  defp process_segment("seeds: " <> rest) do
+    rest
+    |> String.split(" ")
+    |> Enum.chunk_every(2)
+    |> Enum.map(fn [start, len] ->
+      {String.to_integer(start), String.to_integer(len)}
+    end)
+  end
+
+  defp process_segment(rules_raw) do
+    [_label | [rules]] = String.split(rules_raw, ":", trim: true)
+
+    rules
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      [dest_start, src_start, len] = line |> String.split(" ") |> Enum.map(&String.to_integer/1)
+
+      %{
+        start: src_start,
+        length: len,
+        apply: fn no -> no + (dest_start - src_start) end
+      }
+    end)
+    |> Enum.sort_by(& &1.start)
+  end
+end
+```
+
+```elixir
+SeedRules.PartTwo.parse(sample_input)
+```
+
+```elixir
+SeedRules.PartTwo.parse(real_input)
+```
