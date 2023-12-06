@@ -1,0 +1,115 @@
+# Day 6: Wait For It
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 6
+
+* Puzzle: https://adventofcode.com/2023/day/6
+* Input: https://adventofcode.com/2023/day/6/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Race do
+  defstruct time: 0, distance: 0
+
+  def parse(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.reduce([], &parse_line/2)
+  end
+
+  defp parse_line("Time:" <> raw_times, []) do
+    raw_times
+    |> String.trim(" ")
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.map(fn time -> %__MODULE__{time: String.to_integer(time)} end)
+  end
+
+  defp parse_line("Distance:" <> raw_distances, races) do
+    raw_distances
+    |> String.trim(" ")
+    |> String.split(~r/\s+/, trim: true)
+    |> Enum.zip(races)
+    |> Enum.map(fn {distance, race} -> %{race | distance: String.to_integer(distance)} end)
+  end
+
+  def solution_count(%__MODULE__{time: time, distance: distance}) do
+    max = 0.5 * time + 0.5 * :math.sqrt(time ** 2 - 4 * distance)
+    min = 0.5 * time - 0.5 * :math.sqrt(time ** 2 - 4 * distance)
+
+    max = if floor(max) == max, do: floor(max - 1), else: floor(max)
+    min = if ceil(min) == min, do: ceil(min + 1), else: ceil(min)
+    max - min + 1
+  end
+end
+```
+
+```elixir
+part_1 = fn input ->
+  input
+  |> Race.parse()
+  |> Enum.map(&Race.solution_count/1)
+  |> Enum.reduce(1, &(&1 * &2))
+end
+```
+
+```elixir
+part_1.(sample_input)
+```
+
+```elixir
+part_1.(real_input)
+```
+
+```elixir
+defmodule Race.PartTwo do
+  def parse(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.reduce(%Race{}, &parse_line/2)
+  end
+
+  defp parse_line("Time:" <> raw_times, race) do
+    time =
+      raw_times
+      |> String.replace(" ", "")
+      |> String.to_integer()
+
+    %{race | time: time}
+  end
+
+  defp parse_line("Distance:" <> raw_distances, race) do
+    distance =
+      raw_distances
+      |> String.replace(" ", "")
+      |> String.to_integer()
+
+    %{race | distance: distance}
+  end
+end
+```
+
+```elixir
+part_2 = fn input ->
+  input |> Race.PartTwo.parse() |> Race.solution_count()
+end
+```
+
+```elixir
+part_2.(sample_input)
+```
+
+```elixir
+part_2.(real_input)
+```
