@@ -1,0 +1,133 @@
+# Day 7: Camel Cards
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 7
+
+* Puzzle: https://adventofcode.com/2023/day/7
+* Input: https://adventofcode.com/2023/day/7/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Hand do
+  defstruct cards: "", card_scores: [], bid: 0, score: 0
+
+  def parse(card_string, part_module) do
+    [cards_raw, bid_raw] = String.split(card_string, " ", trim: true)
+    card_scores = cards_raw |> String.graphemes() |> Enum.map(&part_module.card_score/1)
+
+    hand = %__MODULE__{
+      cards: cards_raw,
+      card_scores: card_scores,
+      bid: String.to_integer(bid_raw)
+    }
+
+    %{hand | score: part_module.hand_score(hand)}
+  end
+
+  def sort_score(%__MODULE__{card_scores: card_scores, score: hand_score}) do
+    [hand_score | card_scores]
+  end
+end
+```
+
+```elixir
+defmodule Part1 do
+  def card_score("T"), do: 10
+  def card_score("J"), do: 11
+  def card_score("Q"), do: 12
+  def card_score("K"), do: 13
+  def card_score("A"), do: 14
+  def card_score(card), do: String.to_integer(card)
+
+  def hand_score(%Hand{card_scores: card_scores}) do
+    card_scores
+    |> Enum.frequencies()
+    |> Map.values()
+    |> Enum.sort(:desc)
+    |> score_from_frequencies()
+  end
+
+  def score_from_frequencies([5 | _]), do: 7
+  def score_from_frequencies([4 | _]), do: 6
+  def score_from_frequencies([3, 2 | _]), do: 5
+  def score_from_frequencies([3 | _]), do: 4
+  def score_from_frequencies([2, 2 | _]), do: 3
+  def score_from_frequencies([2 | _]), do: 2
+  def score_from_frequencies(_), do: 1
+end
+```
+
+```elixir
+defmodule Part2 do
+  defdelegate score_from_frequencies(frequencies), to: Part1
+
+  def card_score("J"), do: 1
+  def card_score(card), do: Part1.card_score(card)
+
+  def hand_score(%Hand{card_scores: card_scores}) do
+    non_jokers = Enum.filter(card_scores, &(&1 > card_score("J")))
+    non_jokers = if length(non_jokers) == 0, do: card_scores, else: non_jokers
+
+    non_jokers
+    |> Enum.frequencies()
+    |> Map.values()
+    |> Enum.sort(:desc)
+    |> then(fn [top | rest] -> [top + (5 - length(non_jokers)) | rest] end)
+    |> score_from_frequencies()
+  end
+end
+```
+
+```elixir
+part1 = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&Hand.parse(&1, Part1))
+  |> Enum.sort_by(&Hand.sort_score/1)
+  |> Enum.with_index(fn hand, index ->
+    (index + 1) * hand.bid
+  end)
+  |> Enum.sum()
+end
+```
+
+```elixir
+part1.(sample_input)
+```
+
+```elixir
+part1.(real_input)
+```
+
+```elixir
+part2 = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&Hand.parse(&1, Part2))
+  |> Enum.sort_by(&Hand.sort_score/1)
+  |> Enum.with_index(fn hand, index ->
+    (index + 1) * hand.bid
+  end)
+  |> Enum.sum()
+end
+```
+
+```elixir
+part2.(sample_input)
+```
+
+```elixir
+part2.(real_input)
+```
