@@ -89,11 +89,11 @@ end
 ```
 
 ```elixir
-part1 = fn input ->
+solve = fn input, part_module ->
   input
   |> Kino.Input.read()
   |> String.split("\n", trim: true)
-  |> Enum.map(&Hand.parse(&1, Part1))
+  |> Enum.map(&Hand.parse(&1, part_module))
   |> Enum.sort_by(&Hand.sort_score/1)
   |> Enum.with_index(fn hand, index ->
     (index + 1) * hand.bid
@@ -103,31 +103,17 @@ end
 ```
 
 ```elixir
-part1.(sample_input)
+solve.(sample_input, Part1)
 ```
 
 ```elixir
-part1.(real_input)
+solve.(real_input, Part1)
 ```
 
 ```elixir
-part2 = fn input ->
-  input
-  |> Kino.Input.read()
-  |> String.split("\n", trim: true)
-  |> Enum.map(&Hand.parse(&1, Part2))
-  |> Enum.sort_by(&Hand.sort_score/1)
-  |> Enum.with_index(fn hand, index ->
-    (index + 1) * hand.bid
-  end)
-  |> Enum.sum()
-end
+solve.(sample_input, Part2)
 ```
 
 ```elixir
-part2.(sample_input)
-```
-
-```elixir
-part2.(real_input)
+solve.(real_input, Part2)
 ```
