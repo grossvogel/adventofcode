@@ -1,0 +1,145 @@
+# Day 8: Haunted Wasteland
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 8
+
+* Puzzle: https://adventofcode.com/2023/day/8
+* Input: https://adventofcode.com/2023/day/8/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+sample_input_2 = Kino.Input.textarea("Paste Part 2 Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Directions do
+  defstruct raw: "", steps_taken: 0, size: 0
+
+  def parse(raw) do
+    %__MODULE__{raw: raw, size: String.length(raw)}
+  end
+
+  def next(%__MODULE__{} = directions) do
+    next_step = String.at(directions.raw, rem(directions.steps_taken, directions.size))
+    next_directions = %{directions | steps_taken: directions.steps_taken + 1}
+    {next_step, next_directions}
+  end
+end
+```
+
+```elixir
+<<h::binary-size(1), "e", rest::binary>> = "hello"
+rest
+```
+
+```elixir
+defmodule MapNodes do
+  defstruct nodes: %{}
+
+  def parse(raw) do
+    nodes =
+      raw
+      |> String.split("\n", trim: true)
+      |> Enum.reduce(%{}, fn line, prev_nodes ->
+        {key, coords} = parse_line(line)
+        Map.put(prev_nodes, key, coords)
+      end)
+
+    %__MODULE__{nodes: nodes}
+  end
+
+  def node_names(%__MODULE__{nodes: nodes}), do: Map.keys(nodes)
+
+  def next_node(map, current_node, "L"), do: elem(map.nodes[current_node], 0)
+
+  def next_node(map, current_node, "R"), do: elem(map.nodes[current_node], 1)
+
+  defp parse_line(
+         <<key::binary-size(3), " = (", left::binary-size(3), ", ", right::binary-size(3), ")">>
+       ) do
+    {key, {left, right}}
+  end
+end
+```
+
+```elixir
+part1 = fn input ->
+  [raw_directions, raw_nodes] =
+    input
+    |> Kino.Input.read()
+    |> String.split("\n\n", trim: true)
+
+  directions = Directions.parse(raw_directions)
+  nodes = MapNodes.parse(raw_nodes)
+  state = {"AAA", directions}
+
+  [nil]
+  |> Stream.cycle()
+  |> Enum.reduce_while(state, fn nil, {current_node, prev_directions} ->
+    {next_step, next_directions} = Directions.next(prev_directions)
+    next_node = MapNodes.next_node(nodes, current_node, next_step)
+
+    if next_node == "ZZZ" do
+      {:halt, next_directions.steps_taken}
+    else
+      {:cont, {next_node, next_directions}}
+    end
+  end)
+end
+```
+
+```elixir
+part1.(sample_input)
+```
+
+```elixir
+part1.(real_input)
+```
+
+```elixir
+part2 = fn input ->
+  [raw_directions, raw_nodes] =
+    input
+    |> Kino.Input.read()
+    |> String.split("\n\n", trim: true)
+
+  directions = Directions.parse(raw_directions)
+  nodes = MapNodes.parse(raw_nodes)
+  start_nodes = nodes |> MapNodes.node_names() |> Enum.filter(&String.ends_with?(&1, "A"))
+  state = {start_nodes, directions}
+  IO.inspect(start_nodes)
+
+  [nil]
+  |> Stream.cycle()
+  |> Enum.reduce_while(state, fn nil, {current_nodes, prev_directions} ->
+    {next_step, next_directions} = Directions.next(prev_directions)
+
+    next_nodes =
+      Enum.map(current_nodes, fn node -> MapNodes.next_node(nodes, node, next_step) end)
+
+    if Enum.all?(next_nodes, &String.ends_with?(&1, "Z")) do
+      {:halt, next_directions.steps_taken}
+    else
+      {:cont, {next_nodes, next_directions}}
+    end
+  end)
+end
+```
+
+```elixir
+part2.(sample_input_2)
+```
+
+```elixir
+part2.(real_input)
+```
