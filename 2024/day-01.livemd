@@ -1,0 +1,70 @@
+# Day 1: Historian Hysteria
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 1
+
+* Puzzle: https://adventofcode.com/2024/day/1
+* Input: https://adventofcode.com/2024/day/1/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+parse = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(fn line ->
+    [a, b] = String.split(line, ~r/\s+/)
+    {String.to_integer(a), String.to_integer(b)}
+  end)
+  |> Enum.unzip()
+end
+
+sort = fn {list_a, list_b} -> {Enum.sort(list_a), Enum.sort(list_b)} end
+
+add_differences = fn {list_a, list_b} ->
+  [list_a, list_b]
+  |> Enum.zip_reduce(0, fn [a, b], sum ->
+    sum + abs(a - b)
+  end)
+end
+
+frequencies = fn list ->
+  Enum.reduce(list, %{}, fn number, freq ->
+    Map.update(freq, number, 1, & &1 + 1)
+  end)
+end
+
+similarity_score = fn {left, right} ->
+  freq = frequencies.(right)
+  Enum.reduce(left, 0, fn number, similarity ->
+    weight = Map.get(freq, number, 0)
+    similarity + weight * number
+  end)
+end
+```
+
+```elixir
+sample_input |> parse.() |> sort.() |> add_differences.()
+```
+
+```elixir
+real_input |> parse.() |> sort.() |> add_differences.()
+```
+
+```elixir
+sample_input |> parse.() |> similarity_score.()
+```
+
+```elixir
+real_input |> parse.() |> similarity_score.()
+```
