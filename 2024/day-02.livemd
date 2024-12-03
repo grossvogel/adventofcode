@@ -1,0 +1,115 @@
+# Day 2: Red-Nosed Reports
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 2
+
+* Puzzle: https://adventofcode.com/2024/day/2
+* Input: https://adventofcode.com/2024/day/2/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+Enum.chunk_every([1,2,3,4,5], 2, 1, :discard)
+```
+
+```elixir
+differences = fn levels ->
+  levels |> Enum.chunk_every(2, 1, :discard) |> Enum.map(fn [a, b] -> b - a end)
+end
+
+is_safe = fn raw_report ->
+  diffs =
+    raw_report
+    |> String.split(" ", trim: true)
+    |> Enum.map(&String.to_integer/1)
+    |> differences.()
+
+  Enum.all?(diffs, & abs(&1) >  0 && abs(&1) < 4)
+  && (Enum.all?(diffs, & &1 > 0) || Enum.all?(diffs, & &1 < 0))
+end
+
+safe_report_count = fn input ->
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.reduce(0, fn raw_report, safe_count ->
+    if is_safe.(raw_report), do: safe_count + 1, else: safe_count
+  end)
+end
+```
+
+```elixir
+safe_report_count.(sample_input)
+```
+
+```elixir
+safe_report_count.(real_input)
+```
+
+```elixir
+defmodule Part2 do
+  def safe_count(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.reduce(0, fn raw_report, safe_count ->
+      if safe?(raw_report), do: safe_count + 1, else: safe_count
+    end)
+  end
+
+  defp safe?(raw_report) when is_binary(raw_report) do
+    [first, second | rest] =
+      raw_report
+      |> String.split(" ", trim: true)
+      |> Enum.map(&String.to_integer/1)
+
+    # seed the prev value and check the case where we skip it as well
+    safe?(%{can_skip: true, direction: nil, prev: first, levels: [second | rest]}) or
+      safe?(%{can_skip: false, direction: nil, prev: second, levels: rest})
+  end
+
+  # base case, we got to the end so we're good
+  defp safe?(%{levels: []}), do: true
+
+  # two possible paths to safety, and we check them both:
+  # - the first level is good and we use it and recurse down the list
+  # - we have a skip card and we play it and recurse down the list
+  defp safe?(%{levels: [level | rest]} = state) do
+    (safe_difference?(state) and
+       %{state | levels: rest, prev: level} |> ensure_direction(level, state.prev) |> safe?()) or
+      (state.can_skip and safe?(%{state | levels: rest, can_skip: false}))
+  end
+
+  # best guard ever
+  def safe_difference?(%{levels: [next | _], prev: prev, direction: dir}) when
+    abs(next - prev) > 0 and abs(next - prev) < 4 and
+      ((prev < next and dir == :increasing) or
+         (prev > next and dir == :decreasing) or
+         dir == nil), do: true
+
+  def safe_difference?(_), do: false
+
+  defp ensure_direction(%{direction: nil} = state, next, prev) do
+    %{state | direction: if(next < prev, do: :decreasing, else: :increasing)}
+  end
+
+  defp ensure_direction(state_with_direction, _a, _b), do: state_with_direction
+end
+```
+
+```elixir
+Part2.safe_count(sample_input)
+```
+
+```elixir
+Part2.safe_count(real_input)
+```
