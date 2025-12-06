@@ -1,0 +1,19 @@
+# Day ${DAY}: TITLE
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day ${DAY}
+
+* Puzzle: https://adventofcode.com/2025/day/${DAY}
+* Input: https://adventofcode.com/2025/day/${DAY}/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+

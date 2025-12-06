@@ -1,0 +1,119 @@
+# Day 3: Lobby
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 3
+
+* Puzzle: https://adventofcode.com/2025/day/3
+* Input: https://adventofcode.com/2025/day/3/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Part1 do
+  def solve(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      line |> String.graphemes() |> Enum.map(&String.to_integer/1) |> max_joltage()
+    end)
+    |> Enum.sum()
+  end
+
+  def max_joltage(bank, best_cells \\ {0, 0, 0})
+
+  def max_joltage([next_cell | rest], {prev_joltage, cell1, cell2} = current) do
+    best_first_cell = max(cell1, cell2)
+    potential_joltage = joltage({best_first_cell, next_cell})
+
+    if potential_joltage > prev_joltage do
+      max_joltage(rest, {potential_joltage, best_first_cell, next_cell})
+    else
+      max_joltage(rest, current)
+    end
+  end
+
+  def max_joltage([], {joltage, _, _}), do: joltage
+
+  def joltage({cell1, cell2}), do: cell1 * 10 + cell2
+end
+```
+
+```elixir
+Part1.solve(sample_input)
+```
+
+```elixir
+Part1.solve(real_input)
+```
+
+```elixir
+defmodule Part2 do
+  @active_cell_count 12
+
+  def solve(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      line |> String.graphemes() |> Enum.map(&String.to_integer/1) |> max_joltage()
+    end)
+    |> Enum.sum()
+  end
+
+  #
+  # Loop through the available cells, keeping track of our current best collection
+  # of enabled cells, and deciding at each stage how / whether to incorporate the
+  # next battery for max joltage
+  #
+  defp max_joltage(bank, best_cells \\ [])
+
+  defp max_joltage([next_cell | rest], best_cells) when length(best_cells) < @active_cell_count,
+    do: max_joltage(rest, best_cells ++ [next_cell])
+
+  defp max_joltage([next_cell | rest], best_cells) do
+    all_cells = best_cells ++ [next_cell]
+
+    max_joltage(rest, maximize_joltage(all_cells))
+  end
+
+  defp max_joltage([], best_cells), do: Integer.undigits(best_cells)
+
+  #
+  # Given a list of possibly enabled cells with one more than we're allowed
+  # discover the best possible combination of enabled cells at this stage
+  #
+  # The idea is that, if at any point in the list we have an increasing
+  # jump from one enabled battery to the next, we can increase our total joltage
+  # by swapping the first (lower) battery out and shifting the rest to the left
+  #
+  defp maximize_joltage(all_cells, accum \\ [])
+
+  defp maximize_joltage([first, second | rest], accum) do
+    if second > first do
+      accum ++ [second | rest]
+    else
+      maximize_joltage([second | rest], accum ++ [first])
+    end
+  end
+
+  defp maximize_joltage([_last], accum), do: accum
+end
+```
+
+```elixir
+Part2.solve(sample_input)
+```
+
+```elixir
+Part2.solve(real_input)
+```

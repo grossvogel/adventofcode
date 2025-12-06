@@ -1,0 +1,93 @@
+# Day 1: Secret Entrance
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 01
+
+* Puzzle: https://adventofcode.com/2025/day/1
+* Input: https://adventofcode.com/2025/day/1/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Password do
+  def calculate_one(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.reduce({0, 50}, fn instruction, {count, dial} ->
+      change =
+        case instruction do
+          "L" <> amount -> -String.to_integer(amount)
+          "R" <> amount -> String.to_integer(amount)
+        end
+
+      new_dial = normalize(dial + change)
+      new_count = if new_dial == 0, do: count + 1, else: count
+      {new_count, new_dial}
+    end)
+  end
+
+  def calculate_two(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.reduce({0, 50}, fn instruction, {count, dial} ->
+      change =
+        case instruction do
+          "L" <> amount -> -String.to_integer(amount)
+          "R" <> amount -> String.to_integer(amount)
+        end
+
+      {new_dial, zero_click_count} = apply_change(dial, change)
+      new_count = if new_dial == 0, do: count + zero_click_count + 1, else: count + zero_click_count
+      IO.puts("#{instruction} to #{new_dial} passing 0 #{new_count - count} times")
+      {new_count, new_dial}
+    end)
+  end
+
+  defp normalize(dial) when dial < 0, do: normalize(dial + 100)
+  defp normalize(dial) when dial > 99, do: rem(dial, 100)
+  defp normalize(dial), do: dial
+
+  # I hate all the special cases here!!!
+  defp apply_change(dial, change, carry \\ 0)
+  defp apply_change(0, change, carry) when change < 0 do
+    apply_change(100, change, carry)
+  end
+  defp apply_change(dial, change, carry) when change + dial < 0 do
+    apply_change(dial, change + 100, carry + 1)
+  end
+  defp apply_change(dial, change, carry) when change + dial == 100 do
+    {0, carry}
+  end
+  defp apply_change(dial, change, carry) when change + dial > 99 do
+    apply_change(dial, change - 100, carry + 1)
+  end
+  defp apply_change(dial, change, carry), do: {dial + change, carry}
+end
+```
+
+```elixir
+Password.calculate_one(sample_input)
+```
+
+```elixir
+Password.calculate_one(real_input)
+```
+
+```elixir
+Password.calculate_two(sample_input)
+```
+
+```elixir
+Password.calculate_two(real_input)
+```

@@ -1,0 +1,145 @@
+# Day 2: Gift Shop
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 2
+
+* Puzzle: https://adventofcode.com/2025/day/2
+* Input: https://adventofcode.com/2025/day/2/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Part1 do
+  def solve(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split(",", trim: true)
+    |> Enum.map(fn range ->
+      range
+      |> String.trim()
+      |> String.split("-")
+      |> Enum.map(&String.to_integer/1)
+      |> List.to_tuple()
+    end)
+    |> Enum.reduce(0, fn range, prev_total ->
+      prev_total + sum_of_invalid_ids_in_range(range)
+    end)
+  end
+
+  def sum_of_invalid_ids_in_range(range, carry \\ 0)
+
+  def sum_of_invalid_ids_in_range({start_num, end_num}, carry) when start_num > end_num, do: carry
+
+  def sum_of_invalid_ids_in_range({start_num, end_num}, carry) do
+    next_invalid = next_invalid_id(start_num)
+
+    if next_invalid <= end_num,
+      do: sum_of_invalid_ids_in_range({next_invalid + 1, end_num}, carry + next_invalid),
+      else: carry
+  end
+
+  defp next_invalid_id(lower_bound) do
+    str = to_string(lower_bound)
+    {beginning, _ending} = String.split_at(str, div(String.length(str), 2))
+    beginning = if beginning == "", do: str, else: beginning
+    first_candidate = String.to_integer("#{beginning}#{beginning}")
+
+    if first_candidate >= lower_bound do
+      first_candidate
+    else
+      next_lower_bound =
+        Stream.repeatedly(fn -> 1 end)
+        |> Enum.reduce_while(String.to_integer(beginning) + 1, fn _, prev ->
+          if prev > lower_bound, do: {:halt, prev}, else: {:cont, prev * 10}
+        end)
+
+      next_invalid_id(next_lower_bound)
+    end
+  end
+end
+```
+
+```elixir
+Part1.solve(sample_input)
+```
+
+```elixir
+Part1.solve(real_input)
+```
+
+```elixir
+<<val::binary-size(1)>> = "a"
+```
+
+```elixir
+defmodule Part2 do
+  def solve(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split(",", trim: true)
+    |> Enum.map(fn range ->
+      range
+      |> String.trim()
+      |> String.split("-")
+      |> Enum.map(&String.to_integer/1)
+      |> List.to_tuple()
+    end)
+    |> Enum.reduce(0, fn range, prev_total ->
+      prev_total + sum_of_invalid_ids_in_range(range)
+    end)
+  end
+
+  def sum_of_invalid_ids_in_range(range, carry \\ 0)
+
+  def sum_of_invalid_ids_in_range({lower, upper}, carry) when lower > upper do
+    carry
+  end
+
+  def sum_of_invalid_ids_in_range({lower, upper}, carry) do
+    next_carry = if invalid?(lower), do: carry + lower, else: carry
+    sum_of_invalid_ids_in_range({lower + 1, upper}, next_carry)
+  end
+
+  def invalid?(number) when is_integer(number), do: invalid?("#{number}")
+
+  # dynamically generate function clauses to match strings that represent invalid ids
+  # those are strings that repeat a chunk of some size over and over with no extra chars
+  # in bitstrings, that looks like <<digits::binary-size(size),digits::binary-size(size),...>>
+  # where the match uses the same variable (digits) over and over to ensure the chunks match
+  @repeated_chunk_sizes 1..8
+  @chunk_counts 2..10
+  for size <- @repeated_chunk_sizes do
+    for count <- @chunk_counts do
+      # each instance of the chunk looks like 'digits::binary-size(size)'
+      single_chunk_ast = quote(do: digits::binary-size(unquote(size)))
+
+      # assemble the whole arg <<digits::binary-size(size),digits::binary-size(size),...>>
+      arg_ast = {:<<>>, [], List.duplicate(single_chunk_ast, count)}
+
+      # build the function that matches this particular arg and returns true b/c it's invalid
+      def invalid?(unquote(arg_ast)) do
+        true
+      end
+    end
+  end
+
+  def invalid?(_), do: false
+end
+```
+
+```elixir
+Part2.solve(sample_input)
+```
+
+```elixir
+Part2.solve(real_input)
+```
