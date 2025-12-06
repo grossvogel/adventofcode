@@ -1,0 +1,116 @@
+# Day 4: Printing Department
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 4
+
+* Puzzle: https://adventofcode.com/2025/day/4
+* Input: https://adventofcode.com/2025/day/4/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Paper do
+  def part1(input) do
+    map =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n")
+      |> Enum.with_index()
+      |> Map.new(fn {val, index} -> {index, val} end)
+
+    for {row, row_info} <- map, col <- 0..(byte_size(row_info) - 1), reduce: 0 do
+      prev ->
+        if occupied?(map, {row, col}) and accessible?(map, {row, col}) do
+          prev + 1
+        else
+          prev
+        end
+    end
+  end
+
+  def part2(input) do
+    map =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n")
+      |> Enum.with_index()
+      |> Map.new(fn {val, index} -> {index, val} end)
+
+    fn -> nil end
+    |> Stream.repeatedly()
+    |> Enum.reduce_while({map, 0}, fn _, {prev_map, prev_count} ->
+      {new_map, removed_count} = remove_accessible(prev_map)
+
+      if removed_count > 0 do
+        {:cont, {new_map, prev_count + removed_count}}
+      else
+        {:halt, prev_count}
+      end
+    end)
+  end
+
+  def remove_accessible(map) do
+    for {row, row_info} <- map, col <- 0..(byte_size(row_info) - 1) do
+      {row, col}
+    end
+    |> Enum.filter(fn {row, col} ->
+      occupied?(map, {row, col}) and accessible?(map, {row, col})
+    end)
+    |> Enum.reduce({map, 0}, fn cell, {map, count} ->
+      {remove_paper_at_cell(map, cell), count + 1}
+    end)
+  end
+
+  def remove_paper_at_cell(map, {row, col}) do
+    updated_row =
+      binary_part(map[row], 0, col) <>
+        "." <> binary_part(map[row], col + 1, byte_size(map[row]) - col - 1)
+
+    Map.put(map, row, updated_row)
+  end
+
+  def occupied?(_map, {row, col}) when row < 0 or col < 0, do: false
+
+  def occupied?(map, {row, col}) do
+    with contents when byte_size(contents) > col <- map[row] do
+      <<:binary.at(contents, col)>> == "@"
+    else
+      _ -> false
+    end
+  end
+
+  def accessible?(map, {row, col}) do
+    total =
+      for dx <- -1..1, dy <- -1..1, dx != 0 or dy != 0, reduce: 0 do
+        prev -> if occupied?(map, {row + dy, col + dx}), do: prev + 1, else: prev
+      end
+
+    total < 4
+  end
+end
+```
+
+```elixir
+Paper.part1(sample_input)
+```
+
+```elixir
+Paper.part1(real_input)
+```
+
+```elixir
+Paper.part2(sample_input)
+```
+
+```elixir
+Paper.part2(real_input)
+```
