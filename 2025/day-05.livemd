@@ -1,0 +1,96 @@
+# Day 5: Cafeteria
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 5
+
+* Puzzle: https://adventofcode.com/2025/day/5
+* Input: https://adventofcode.com/2025/day/5/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Cafeteria do
+  def part1(input) do
+    {ranges, ids} = parse(input)
+
+    Enum.count(ids, fn id -> Enum.find(ranges, & in_range?(id, &1)) end)
+  end
+
+  def part2(input) do
+    {ranges, _ids} = parse(input)
+
+    ranges
+    |> Enum.reduce([], fn range, consolidated ->
+      incorporate_range(range, consolidated)
+    end)
+    |> Enum.sum_by(fn {lower, upper} -> upper - lower + 1 end)
+  end
+
+  defp parse(input) do
+    [raw_ranges, raw_ids] =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n\n")
+
+    ranges =
+      raw_ranges
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn range ->
+        range |> String.split("-") |> Enum.map(&String.to_integer/1) |> List.to_tuple()
+      end)
+
+    ids = raw_ids |> String.split("\n", trim: true) |> Enum.map(&String.to_integer/1)
+    {ranges, ids}
+  end
+
+  defp in_range?(id, {lower, upper}) when id >= lower and id <= upper, do: true
+  defp in_range?(_, _), do: false
+
+  defp incorporate_range(range, remaining, visited \\ [])
+
+  # no ranges left, add our new range at the end
+  defp incorporate_range(range, [], visited), do: visited ++ [range]
+
+  # new range is strictly less than the next range in the list
+  defp incorporate_range({lower, upper}, [{e_lower, _} | _] = remaining, visited) when upper < e_lower do
+    visited ++ [{lower, upper}] ++ remaining
+  end
+
+  # new range is strictly greater than the next range in the list
+  # add that one to the visited list and continue
+  defp incorporate_range({lower, upper}, [{e_lower, e_upper} | rest], visited) when lower > e_upper do
+    incorporate_range({lower, upper}, rest, visited ++ [{e_lower, e_upper}])
+  end
+
+  # new range must overlap with the next range in the list
+  # merge them together and then incorporate that combined range
+  defp incorporate_range({lower, upper}, [{e_lower, e_upper} | rest], visited) do
+    incorporate_range({min(lower, e_lower), max(upper, e_upper)}, rest, visited)
+  end
+end
+```
+
+```elixir
+Cafeteria.part1(sample_input)
+```
+
+```elixir
+Cafeteria.part1(real_input)
+```
+
+```elixir
+Cafeteria.part2(sample_input)
+```
+
+```elixir
+Cafeteria.part2(real_input)
+```

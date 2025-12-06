@@ -89,12 +89,12 @@ defmodule Paper do
   end
 
   def accessible?(map, {row, col}) do
-    total =
+    occupied_neighbors =
       for dx <- -1..1, dy <- -1..1, dx != 0 or dy != 0, reduce: 0 do
         prev -> if occupied?(map, {row + dy, col + dx}), do: prev + 1, else: prev
       end
 
-    total < 4
+    occupied_neighbors < 4
   end
 end
 ```
