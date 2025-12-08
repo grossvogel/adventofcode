@@ -1,0 +1,171 @@
+# Day 6: Trash Compactor
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 6
+
+* Puzzle: https://adventofcode.com/2025/day/6
+* Input: https://adventofcode.com/2025/day/6/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+
+```
+
+```elixir
+defmodule Problem do
+  defstruct [:numbers, :operation, :result]
+
+  def new("*") do
+    %__MODULE__{numbers: [], operation: &Kernel.*/2, result: 1}
+  end
+
+  def new("+") do
+    %__MODULE__{numbers: [], operation: &Kernel.+/2, result: 0}
+  end
+
+  def update(%__MODULE__{} = problem, value) do
+    %{
+      problem
+      | numbers: [value | problem.numbers],
+        result: problem.operation.(problem.result, value)
+    }
+  end
+end
+
+defmodule Trash do
+  def part1(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.reverse()
+    |> Enum.reduce(%{}, fn
+      row, problems when problems == %{} -> init_problems(row)
+      row, problems -> update_problems(problems, row)
+    end)
+    |> Enum.sum_by(fn {_col, problem} -> problem.result end)
+  end
+
+  def part2(input) do
+    [operations | reversed_rows] =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n", trim: true)
+      |> Enum.reverse()
+      |> Enum.map(&String.reverse/1)
+
+    col_mapping = char_to_col_map(reversed_rows)
+    cols = parse_cols(reversed_rows, col_mapping)
+
+    operations
+    |> init_problems()
+    |> Enum.sum_by(fn {col, problem} ->
+      cols
+      |> Map.get(col)
+      |> Enum.reduce(problem, fn {_char_index, col_digits}, problem ->
+        Problem.update(problem, Integer.undigits(col_digits))
+      end)
+      |> Map.get(:result)
+    end)
+  end
+
+  defp init_problems(row) do
+    row
+    |> String.split(~r(\s+), trim: true)
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {operation, index}, problems ->
+      Map.put(problems, index, Problem.new(operation))
+    end)
+  end
+
+  defp char_to_col_map(rows) do
+    col_widths =
+      Enum.reduce(rows, %{}, fn row, widths ->
+        row
+        |> String.split(~r(\s+), trim: true)
+        |> Enum.with_index()
+        |> Enum.reduce(widths, fn {col_val, col_num}, prev_widths ->
+          cur_width = String.length(col_val)
+
+          Map.update(prev_widths, col_num, cur_width, fn prev_width ->
+            max(prev_width, cur_width)
+          end)
+        end)
+      end)
+
+    0
+    |> Stream.iterate(&(&1 + 1))
+    |> Enum.reduce_while({%{}, -1, 0}, fn index, {mapping, cur_col, col_width} ->
+      cond do
+        col_width > 0 ->
+          {:cont, {Map.put(mapping, index, cur_col), cur_col, col_width - 1}}
+
+        col_width == 0 && Map.has_key?(col_widths, cur_col + 1) ->
+          {:cont, {Map.put(mapping, index, cur_col + 1), cur_col + 1, col_widths[cur_col + 1]}}
+
+        true ->
+          {:halt, mapping}
+      end
+    end)
+  end
+
+  defp parse_cols(rows, col_mapping) do
+    Enum.reduce(rows, %{}, fn row, cols ->
+      row
+      |> String.graphemes()
+      |> Enum.with_index()
+      |> Enum.reduce(cols, fn
+        {" ", _char_index}, prev_cols ->
+          prev_cols
+
+        {char, char_index}, prev_cols ->
+          col = col_mapping[char_index]
+          digit = String.to_integer(char)
+
+          cur_col_map =
+            Map.update(prev_cols[col] || %{}, char_index, [digit], fn prev_digits ->
+              [digit | prev_digits]
+            end)
+
+          Map.put(prev_cols, col, cur_col_map)
+      end)
+    end)
+  end
+
+  defp update_problems(problems, row) do
+    row
+    |> String.split(~r(\s+), trim: true)
+    |> Enum.with_index()
+    |> Enum.reduce(problems, fn {raw_value, index}, prev_problems ->
+      Map.update!(prev_problems, index, fn problem ->
+        Problem.update(problem, String.to_integer(raw_value))
+      end)
+    end)
+  end
+end
+```
+
+```elixir
+Trash.part1(sample_input)
+```
+
+```elixir
+Trash.part1(real_input)
+```
+
+```elixir
+Trash.part2(sample_input)
+```
+
+```elixir
+Trash.part2(real_input)
+```

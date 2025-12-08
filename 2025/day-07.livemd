@@ -1,0 +1,143 @@
+# Day 7: Laboratories
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 7
+
+* Puzzle: https://adventofcode.com/2025/day/7
+* Input: https://adventofcode.com/2025/day/7/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+defmodule Laboratories1 do
+  def solve(input) do
+    {split_count, beam_indices} =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n", trim: true)
+      |> Enum.take_every(2)
+      |> Enum.reduce(nil, &process_line/2)
+
+    IO.inspect(beam_indices)
+
+    split_count
+  end
+
+  # first line, find the S
+  def process_line(line, nil) do
+    beam_indices =
+      line
+      |> String.graphemes()
+      |> Enum.with_index()
+      |> Enum.filter(&(elem(&1, 0) == "S"))
+      |> Enum.map(&elem(&1, 1))
+
+    {0, MapSet.new(beam_indices)}
+  end
+
+  def process_line(line, {split_count, beam_indices}) do
+    Enum.reduce(beam_indices, {split_count, beam_indices}, fn beam_index, {prev_count, prev_indices} ->
+      if <<:binary.at(line, beam_index)>> == "^" do
+        {prev_count + 1,
+         prev_indices
+         |> MapSet.put(beam_index - 1)
+         |> MapSet.put(beam_index + 1)
+         |> MapSet.delete(beam_index)}
+      else
+        {prev_count, prev_indices}
+      end
+    end)
+  end
+end
+```
+
+```elixir
+Laboratories1.solve(sample_input)
+```
+
+```elixir
+Laboratories1.solve(real_input)
+```
+
+```elixir
+defmodule BeamTracker do
+  defstruct beams: %{}
+
+  def new(indices) do
+    Enum.reduce(indices, %__MODULE__{}, &add(&2, &1, 1))
+  end
+
+  def active_beam_indices(%__MODULE__{} = tracker), do: Map.keys(tracker.beams)
+
+  def remove(%__MODULE__{} = tracker, index) do
+    %{tracker | beams: Map.delete(tracker.beams, index)}
+  end
+
+  def add(%__MODULE__{} = tracker, index, inherited_count) do
+    %{tracker | beams: Map.update(tracker.beams, index, inherited_count, &(&1 + inherited_count))}
+  end
+
+  def count_for(%__MODULE__{} = tracker, index), do: Map.get(tracker.beams, index, 0)
+
+  def compute(%__MODULE__{} = tracker) do
+    tracker.beams
+    |> Map.values()
+    |> Enum.sum()
+  end
+end
+
+defmodule Laboratories2 do
+  def solve(input) do
+    input
+    |> Kino.Input.read()
+    |> String.split("\n", trim: true)
+    |> Enum.take_every(2)
+    |> Enum.reduce(nil, &process_line/2)
+    |> BeamTracker.compute()
+  end
+
+  # first line, find the S
+  def process_line(line, nil) do
+    line
+    |> String.graphemes()
+    |> Enum.with_index()
+    |> Enum.filter(&(elem(&1, 0) == "S"))
+    |> Enum.map(&elem(&1, 1))
+    |> BeamTracker.new()
+  end
+
+  def process_line(line, tracker) do
+    tracker
+    |> BeamTracker.active_beam_indices()
+    |> Enum.reduce(tracker, fn beam_index, prev_tracker ->
+      if <<:binary.at(line, beam_index)>> == "^" do
+        current_count = BeamTracker.count_for(prev_tracker, beam_index)
+        
+        prev_tracker
+        |> BeamTracker.add(beam_index - 1, current_count)
+        |> BeamTracker.add(beam_index + 1, current_count)
+        |> BeamTracker.remove(beam_index)
+      else
+        prev_tracker
+      end
+    end)
+  end
+end
+```
+
+```elixir
+Laboratories2.solve(sample_input)
+```
+
+```elixir
+Laboratories2.solve(real_input)
+```
