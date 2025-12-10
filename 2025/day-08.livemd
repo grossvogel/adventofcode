@@ -1,0 +1,151 @@
+# Day 8: Playground
+
+```elixir
+Mix.install([{:kino, "~> 0.11.3"}])
+```
+
+## Day 8
+
+* Puzzle: https://adventofcode.com/2025/day/8
+* Input: https://adventofcode.com/2025/day/8/input
+
+```elixir
+sample_input = Kino.Input.textarea("Paste Sample Input")
+```
+
+```elixir
+real_input = Kino.Input.textarea("Paste Real Input")
+```
+
+```elixir
+
+```
+
+```elixir
+defmodule JunctionBoxes do
+  def part1(input, connection_count) do
+    points =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn line -> "{#{line}}" |> Code.eval_string() |> elem(0) end)
+
+    for p1 <- points, p2 <- points, p1 < p2, reduce: [] do
+      distances -> [{p1, p2, delta_squared(p1, p2)} | distances]
+    end
+    |> Enum.sort_by(fn {_p1, _p2, d} -> d end)
+    |> Enum.reduce_while({0, %{}, %{}}, fn {p1, p2, _d}, {count, box_circuits, circuits} ->
+      already_connected? =
+        !is_nil(Map.get(box_circuits, p1)) and
+          Map.get(box_circuits, p1) == Map.get(box_circuits, p2)
+
+      cond do
+        count >= connection_count ->
+          {:halt, IO.inspect(circuits)}
+
+        already_connected? ->
+          IO.inspect(
+            "skipping connection between connected boxes #{inspect(p1)} and #{inspect(p2)}"
+          )
+
+          {:cont, {count + 1, box_circuits, circuits}}
+
+        true ->
+          IO.inspect("Connecting boxes #{inspect(p1)} and #{inspect(p2)}")
+          circuit_1_id = Map.get(box_circuits, p1)
+          circuit_2_id = Map.get(box_circuits, p2)
+          circuit_1 = if circuit_1_id, do: Map.get(circuits, circuit_1_id), else: MapSet.new([p1])
+          circuit_2 = if circuit_2_id, do: Map.get(circuits, circuit_2_id), else: MapSet.new([p2])
+
+          circuit_id = circuit_1_id || circuit_2_id || System.unique_integer()
+          circuit_boxes = MapSet.union(circuit_1, circuit_2)
+
+          circuits =
+            circuits
+            |> Map.delete(circuit_1_id)
+            |> Map.delete(circuit_2_id)
+            |> Map.put(circuit_id, circuit_boxes)
+
+          box_circuits = Enum.reduce(circuit_boxes, box_circuits, &Map.put(&2, &1, circuit_id))
+          {:cont, {count + 1, box_circuits, circuits}}
+      end
+    end)
+    |> Enum.map(fn {_id, circuit} -> MapSet.size(circuit) end)
+    |> Enum.sort(:desc)
+    |> Enum.take(3)
+    |> Enum.reduce(1, &(&1 * &2))
+  end
+
+  def part2(input) do
+    points =
+      input
+      |> Kino.Input.read()
+      |> String.split("\n", trim: true)
+      |> Enum.map(fn line -> "{#{line}}" |> Code.eval_string() |> elem(0) end)
+
+    point_count = length(points)
+
+    for p1 <- points, p2 <- points, p1 < p2, reduce: [] do
+      distances -> [{p1, p2, delta_squared(p1, p2)} | distances]
+    end
+    |> Enum.sort_by(fn {_p1, _p2, d} -> d end)
+    |> Enum.reduce_while({%{}, %{}}, fn {p1, p2, _d}, {box_circuits, circuits} ->
+      already_connected? =
+        !is_nil(Map.get(box_circuits, p1)) and
+          Map.get(box_circuits, p1) == Map.get(box_circuits, p2)
+
+      cond do
+        already_connected? ->
+          IO.inspect(
+            "skipping connection between connected boxes #{inspect(p1)} and #{inspect(p2)}"
+          )
+
+          {:cont, {box_circuits, circuits}}
+
+        true ->
+          IO.inspect("Connecting boxes #{inspect(p1)} and #{inspect(p2)}")
+          circuit_1_id = Map.get(box_circuits, p1)
+          circuit_2_id = Map.get(box_circuits, p2)
+          circuit_1 = if circuit_1_id, do: Map.get(circuits, circuit_1_id), else: MapSet.new([p1])
+          circuit_2 = if circuit_2_id, do: Map.get(circuits, circuit_2_id), else: MapSet.new([p2])
+
+          circuit_id = circuit_1_id || circuit_2_id || System.unique_integer()
+          circuit_boxes = MapSet.union(circuit_1, circuit_2)
+
+          if MapSet.size(circuit_boxes) == point_count do
+            {:halt, elem(p1, 0) * elem(p2, 0)}
+          else
+            circuits =
+              circuits
+              |> Map.delete(circuit_1_id)
+              |> Map.delete(circuit_2_id)
+              |> Map.put(circuit_id, circuit_boxes)
+
+            box_circuits = Enum.reduce(circuit_boxes, box_circuits, &Map.put(&2, &1, circuit_id))
+            {:cont, {box_circuits, circuits}}
+          end
+      end
+    end)
+  end
+
+  defp delta_squared({x1, y1, z1}, {x2, y2, z2}) do
+    (x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2
+  end
+end
+```
+
+```elixir
+JunctionBoxes.part1(sample_input, 10)
+```
+
+```elixir
+JunctionBoxes.part1(real_input, 1000)
+```
+
+```elixir
+JunctionBoxes.part2(sample_input)
+```
+
+```elixir
+JunctionBoxes.part2(real_input)
+```
